@@ -11,28 +11,49 @@ It includes:
 
 ## What Most Users Should Do
 
-### Run the local stack
+### Start as a buyer
 
-Use this if you want the merchant dashboard and buyer onboarding running locally.
+Use this if you only want the buyer or agent side.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/bootstrap_local.ps1
+powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1
+powershell -ExecutionPolicy Bypass -File python/run_buyer_onboarding.ps1
+```
+
+That brings up:
+
+- buyer onboarding: `http://127.0.0.1:8011/aimipay/buyer/onboarding`
+
+### Start as a merchant
+
+Use this if you only want the seller or merchant side.
+
+```powershell
 powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1
-powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1
+powershell -ExecutionPolicy Bypass -File python/run_merchant_stack.ps1
 ```
 
 That brings up:
 
 - merchant dashboard: `http://127.0.0.1:8000/aimipay/install`
-- buyer onboarding: `http://127.0.0.1:8011/aimipay/buyer/onboarding`
 
-If you want a single one-shot demo payment after that:
+### Run the full local demo
+
+Use this if you want both sides locally and then want to submit a one-shot demo payment.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1
+powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1
+powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1
+```
+
+Then run a one-shot demo payment:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/run_local_demo.ps1
 ```
 
-### Use the install hub
+### Use the role-based install hub
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/start_easy_setup.ps1
@@ -47,13 +68,13 @@ Then open:
 Default local install:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/bootstrap_local.ps1
+powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1
 ```
 
 Merchant-driven install:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/bootstrap_local.ps1 -MerchantUrl https://merchant.example
+powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1 -MerchantUrl https://merchant.example
 ```
 
 In merchant-driven mode, the buyer runtime prefers the merchant's manifest and discovery data for:
@@ -67,8 +88,8 @@ In merchant-driven mode, the buyer runtime prefers the merchant's manifest and d
 Bundled network profiles are also supported:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/bootstrap_local.ps1 -NetworkProfile local
-powershell -ExecutionPolicy Bypass -File python/bootstrap_local.ps1 -NetworkProfile nile
+powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1 -NetworkProfile local
+powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1 -NetworkProfile nile
 ```
 
 ## Merchant Install

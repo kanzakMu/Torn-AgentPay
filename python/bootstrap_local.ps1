@@ -183,4 +183,8 @@ Write-Host "Buyer onboarding local URL:"
 Write-Host $buyerOnboardingUrl
 Write-Host "If you plan to use a live Tron environment, fund the generated buyer address before purchasing."
 Write-Host "Next step:"
+Write-Host "powershell -ExecutionPolicy Bypass -File python/run_buyer_onboarding.ps1"
+Write-Host ""
+Write-Host "If you also want a local merchant and a one-shot demo purchase, continue with:"
+Write-Host "powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1"
 Write-Host "powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1"

@@ -33,7 +33,7 @@ class LaunchRequest(BaseModel):
 
 def create_app() -> FastAPI:
     repository_root = Path(os.environ.get("AIMIPAY_REPOSITORY_ROOT", Path(__file__).resolve().parents[2])).resolve()
-    app = FastAPI(title="AimiPay Easy Setup")
+    app = FastAPI(title="Torn-AgentPay Role Setup")
 
     @app.get("/aimipay/easy-setup")
     async def easy_setup_page() -> HTMLResponse:
@@ -50,7 +50,7 @@ def create_app() -> FastAPI:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            str(repository_root / "python" / "bootstrap_local.ps1"),
+            str(repository_root / "python" / "bootstrap_buyer.ps1"),
             "-MerchantUrl",
             payload.merchant_url,
             "-BuyerOnboardingPort",
@@ -135,6 +135,24 @@ def create_app() -> FastAPI:
             "url": f"http://127.0.0.1:{payload.port}/aimipay/install",
         }
 
+    @app.post("/aimipay/easy-setup/start/demo")
+    async def easy_setup_start_demo() -> dict[str, Any]:
+        _launch_background(
+            [
+                "powershell",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(repository_root / "python" / "run_local_demo.ps1"),
+            ],
+            cwd=repository_root,
+        )
+        return {
+            "ok": True,
+            "operation": "start_demo",
+            "summary": "The local buyer + merchant demo is running in a new console window.",
+        }
+
     return app
 
 
@@ -147,6 +165,8 @@ def _status_payload(repository_root: Path) -> dict[str, Any]:
         "links": {
             "buyer_onboarding_local": "http://127.0.0.1:8011/aimipay/buyer/onboarding",
             "merchant_dashboard_local": "http://127.0.0.1:8000/aimipay/install",
+            "buyer_bootstrap_command": "powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1",
+            "merchant_bootstrap_command": "powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1",
             "local_stack_command": "powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1",
             "local_demo_command": "powershell -ExecutionPolicy Bypass -File python/run_local_demo.ps1",
         },
@@ -181,13 +201,15 @@ def _render_easy_setup_html() -> str:
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>AimiPay Easy Setup</title>
+<title>Torn-AgentPay Role Setup</title>
 <style>
 body { font-family: Segoe UI, Arial, sans-serif; margin: 32px; color: #0f172a; background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%); }
 .shell { max-width: 1180px; margin: 0 auto; }
 .hero { background: #ffffff; border: 1px solid #dbeafe; border-radius: 18px; padding: 24px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.06); }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; margin-top: 20px; }
 .card { background: #ffffff; border: 1px solid #dbeafe; border-radius: 16px; padding: 20px; }
+.steps { margin-top: 10px; padding-left: 18px; color: #334155; }
+.steps li { margin: 6px 0; }
 .field { margin-top: 12px; }
 label { display: block; font-size: 12px; color: #475569; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
 input, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font: inherit; }
@@ -204,14 +226,20 @@ a { color: #0f766e; text-decoration: none; }
 <body>
 <div class="shell">
   <div class="hero">
-    <h1>AimiPay Easy Setup</h1>
-    <p class="muted">Use one page to install the buyer, install the merchant, start the buyer onboarding UI, and open the merchant dashboard. The goal here is simple: no hunting across scripts.</p>
-    <p><strong>Flow:</strong> install buyer -> install merchant -> start merchant dashboard -> open buyer onboarding -> review offers -> run first purchase.</p>
+    <h1>Torn-AgentPay Role Setup</h1>
+    <p class="muted">Start by choosing who you are. Buyers configure wallet + merchant access. Merchants configure offers + settlement. Demo mode runs both sides together for a local walkthrough.</p>
+    <p><strong>Choose one path:</strong> Buyer, Merchant, or Demo.</p>
   </div>
   <div class="grid">
     <div class="card">
-      <h2>Buyer Install</h2>
-      <p class="muted">Best for the agent or buyer side. Set the merchant URL here so the buyer onboarding page already knows where to connect.</p>
+      <h2>Buyer Path</h2>
+      <p class="muted">Use this if you are the agent or buyer. We will set up the wallet, bind a merchant URL, and open the buyer onboarding UI.</p>
+      <ol class="steps">
+        <li>Install the buyer runtime</li>
+        <li>Save the merchant URL</li>
+        <li>Open buyer onboarding</li>
+        <li>Review offers and prepare your first purchase</li>
+      </ol>
       <div class="field">
         <label for="buyer-merchant-url">Merchant URL</label>
         <input id="buyer-merchant-url" type="url" value="http://127.0.0.1:8000">
@@ -230,8 +258,14 @@ a { color: #0f766e; text-decoration: none; }
       <div id="buyer-status" class="status">Waiting for action.</div>
     </div>
     <div class="card">
-      <h2>Merchant Install</h2>
-      <p class="muted">Prepare the merchant runtime and control plane with the selected network profile.</p>
+      <h2>Merchant Path</h2>
+      <p class="muted">Use this if you are the seller or service operator. We will prepare the merchant runtime, then open the merchant dashboard for route and plan setup.</p>
+      <ol class="steps">
+        <li>Install the merchant runtime</li>
+        <li>Choose a network profile</li>
+        <li>Open the merchant dashboard</li>
+        <li>Configure routes, plans, and branding</li>
+      </ol>
       <div class="field">
         <label for="merchant-network-profile">Network Profile</label>
         <select id="merchant-network-profile">
@@ -245,10 +279,16 @@ a { color: #0f766e; text-decoration: none; }
       <div id="merchant-status" class="status">Waiting for action.</div>
     </div>
     <div class="card">
-      <h2>Open Local UIs</h2>
-      <p class="muted">If you want the simplest workflow, use these launch buttons after install.</p>
+      <h2>Demo Path</h2>
+      <p class="muted">Use this if you want to see both sides working together on one machine. Keep the local stack running, then trigger a one-shot purchase demo.</p>
+      <ol class="steps">
+        <li>Start the local buyer + merchant stack</li>
+        <li>Open the buyer and merchant pages</li>
+        <li>Run a one-shot local purchase demo</li>
+      </ol>
       <button id="start-buyer-ui" class="secondary">Start Buyer Onboarding UI</button>
       <button id="start-merchant-ui" class="secondary">Start Merchant Dashboard</button>
+      <button id="start-demo" class="secondary">Run Local Demo Purchase</button>
       <div id="launch-status" class="status">Waiting for action.</div>
     </div>
   </div>
@@ -295,9 +335,12 @@ async function refreshStatus() {
   document.getElementById("buyer-summary").textContent = renderChecks(data.buyer);
   document.getElementById("merchant-summary").textContent = renderChecks(data.merchant);
   document.getElementById("quick-links").innerHTML = `
-    <div><a href="${data.links.buyer_onboarding_local}" target="_blank">Buyer onboarding UI</a></div>
-    <div><a href="${data.links.merchant_dashboard_local}" target="_blank">Merchant dashboard</a></div>
-    <div class="muted" style="margin-top:8px;">${data.links.local_demo_command}</div>
+    <div><strong>Buyer:</strong> <span class="muted">${data.links.buyer_bootstrap_command}</span></div>
+    <div><strong>Merchant:</strong> <span class="muted">${data.links.merchant_bootstrap_command}</span></div>
+    <div><strong>Local stack:</strong> <span class="muted">${data.links.local_stack_command}</span></div>
+    <div><strong>Demo purchase:</strong> <span class="muted">${data.links.local_demo_command}</span></div>
+    <div style="margin-top:8px;"><a href="${data.links.buyer_onboarding_local}" target="_blank">Open buyer onboarding UI</a></div>
+    <div><a href="${data.links.merchant_dashboard_local}" target="_blank">Open merchant dashboard</a></div>
   `;
 }
 document.getElementById("install-buyer").addEventListener("click", async () => {
@@ -350,6 +393,16 @@ document.getElementById("start-merchant-ui").addEventListener("click", async () 
     box.innerHTML = `Merchant dashboard is starting.<br><a href="${result.url}" target="_blank">${result.url}</a>`;
   } catch (error) {
     box.textContent = `Could not start merchant dashboard.\\n\\n${error.message}`;
+  }
+});
+document.getElementById("start-demo").addEventListener("click", async () => {
+  const box = document.getElementById("launch-status");
+  box.textContent = "Running one-shot local demo purchase...";
+  try {
+    const result = await postJson("/aimipay/easy-setup/start/demo", {});
+    box.textContent = result.summary;
+  } catch (error) {
+    box.textContent = `Could not run local demo purchase.\\n\\n${error.message}`;
   }
 });
 refreshStatus();

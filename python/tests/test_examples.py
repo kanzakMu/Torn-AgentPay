@@ -265,9 +265,10 @@ def test_example_easy_setup_app_exposes_single_page_install_hub(monkeypatch) -> 
     response = client.get("/aimipay/easy-setup")
 
     assert response.status_code == 200
-    assert "AimiPay Easy Setup" in response.text
-    assert "Install Buyer" in response.text
-    assert "Install Merchant" in response.text
+    assert "Torn-AgentPay Role Setup" in response.text
+    assert "Buyer Path" in response.text
+    assert "Merchant Path" in response.text
+    assert "Demo Path" in response.text
 
 
 def test_example_easy_setup_status_returns_buyer_and_merchant_reports() -> None:
@@ -281,6 +282,8 @@ def test_example_easy_setup_status_returns_buyer_and_merchant_reports() -> None:
     assert "buyer" in payload
     assert "merchant" in payload
     assert "links" in payload
+    assert "buyer_bootstrap_command" in payload["links"]
+    assert "merchant_bootstrap_command" in payload["links"]
 
 
 def test_local_demo_runtime_builds_single_merchant_runtime() -> None:

@@ -59,28 +59,56 @@ npm test
 npm run smoke:local
 ```
 
-### Option B: Run the local buyer + merchant flow
+### Option B: Start as a buyer
 
-Use this if you want the local services running first, then optionally execute a one-shot payment demo.
+Use this if you only want the buyer or agent side first.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/bootstrap_local.ps1
+powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1
+powershell -ExecutionPolicy Bypass -File python/run_buyer_onboarding.ps1
+```
+
+Then open:
+
+- the buyer onboarding UI at `http://127.0.0.1:8011/aimipay/buyer/onboarding`
+
+### Option C: Start as a merchant
+
+Use this if you only want the seller or service-operator side first.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1
+powershell -ExecutionPolicy Bypass -File python/run_merchant_stack.ps1
+```
+
+Then open:
+
+- the merchant dashboard at `http://127.0.0.1:8000/aimipay/install`
+
+### Option D: Run the full local demo
+
+Use this if you want both sides running on one machine and then want to execute a one-shot purchase demo.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1
 powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1
 powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1
 ```
 
-That starts:
+That starts both local UIs:
 
 - the merchant dashboard at `http://127.0.0.1:8000/aimipay/install`
 - the buyer onboarding UI at `http://127.0.0.1:8011/aimipay/buyer/onboarding`
 
-If you want a single demo purchase after the stack is up:
+Then run a one-shot local purchase:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/run_local_demo.ps1
 ```
 
-If you prefer a single local install surface instead of separate scripts:
+### Option E: Use the role-based local setup hub
+
+Use this if you want one local page that separates Buyer, Merchant, and Demo paths:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/start_easy_setup.ps1
@@ -90,7 +118,7 @@ Then open:
 
 - `http://127.0.0.1:8010/aimipay/easy-setup`
 
-### Option C: Install into an AI host
+### Option F: Install into an AI host
 
 Use this if you want an AI agent host to install Torn-AgentPay as a local package.
 
@@ -116,7 +144,7 @@ Supported host targets include:
 - `hermes`
 - `all`
 
-### Option D: Install directly from GitHub
+### Option G: Install directly from GitHub
 
 Use this if you want the installer to fetch the repository from GitHub and install the agent package in one step.
 
@@ -134,7 +162,8 @@ Notes:
 
 ### Buyer / Agent
 
-- install agent package
+- choose the buyer path
+- install agent package or buyer runtime
 - create or load buyer wallet
 - connect a merchant URL
 - discover offers
@@ -144,6 +173,7 @@ Notes:
 
 ### Merchant / Seller
 
+- choose the merchant path
 - install merchant runtime
 - configure service metadata, routes, and plans
 - expose manifest and discovery endpoints
