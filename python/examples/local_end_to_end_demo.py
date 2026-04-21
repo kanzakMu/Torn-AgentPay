@@ -101,6 +101,16 @@ def main() -> None:
 
 @contextmanager
 def _merchant_demo_server(*, repository_root: str, merchant_port: int):
+    merchant_health_url = f"http://127.0.0.1:{merchant_port}/.well-known/aimipay.json"
+    with httpx.Client(timeout=1.0, trust_env=False) as client:
+        try:
+            response = client.get(merchant_health_url)
+            if response.status_code == 200:
+                yield
+                return
+        except httpx.HTTPError:
+            pass
+
     env = os.environ.copy()
     env.setdefault("AIMIPAY_REPOSITORY_ROOT", repository_root)
     env.setdefault("AIMIPAY_FULL_HOST", "http://127.0.0.1:9090")
@@ -130,7 +140,7 @@ def _merchant_demo_server(*, repository_root: str, merchant_port: int):
             stderr=subprocess.DEVNULL,
         )
         try:
-            _wait_for_merchant(f"http://127.0.0.1:{merchant_port}/.well-known/aimipay.json")
+            _wait_for_merchant(merchant_health_url)
             yield
         finally:
             process.terminate()

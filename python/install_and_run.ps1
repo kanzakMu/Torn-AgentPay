@@ -10,4 +10,9 @@ if ($LASTEXITCODE -ne 0) {
     throw "Bootstrap failed."
 }
 
+& (Join-Path $scriptRoot "bootstrap_merchant.ps1") -PythonExecutable $PythonExecutable -NetworkProfile local
+if ($LASTEXITCODE -ne 0) {
+    throw "Merchant bootstrap failed."
+}
+
 & (Join-Path $scriptRoot "run_local_stack.ps1") -MerchantPort $MerchantPort

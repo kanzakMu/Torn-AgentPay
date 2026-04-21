@@ -16,7 +16,7 @@ def test_install_doctor_report_format_is_readable() -> None:
             ],
             "next_steps": [
                 "run `powershell -ExecutionPolicy Bypass -File python/bootstrap_local.ps1`",
-                "start the local demo with `powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1`",
+                "start the local stack with `powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1`",
             ],
         }
     )

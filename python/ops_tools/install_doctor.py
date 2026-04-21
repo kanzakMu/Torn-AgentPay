@@ -446,7 +446,7 @@ def _next_steps(
     if env_local_present and not merchant_urls:
         steps.append("set `AIMIPAY_MERCHANT_URLS` to the merchant URL you want the buyer to connect to")
     if not run_ready:
-        steps.append("start the local demo with `powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1`")
+        steps.append("start the local stack with `powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1`")
     if not steps:
         steps.append("local install is ready; start the merchant demo or dry run scripts directly")
     return steps

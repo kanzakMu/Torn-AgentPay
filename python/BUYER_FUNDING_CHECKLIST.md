@@ -5,8 +5,10 @@ Use this checklist after AimiPay creates a buyer wallet for an agent.
 ## Local Demo
 
 - `local_smoke` does not require live Tron funding
-- run:
+- start the local stack:
   `powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1`
+- then run a one-shot purchase demo:
+  `powershell -ExecutionPolicy Bypass -File python/run_local_demo.ps1`
 
 ## Nile or Live Tron
 

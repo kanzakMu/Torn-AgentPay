@@ -22,6 +22,17 @@ powershell -ExecutionPolicy Bypass -File python/bootstrap_local.ps1
 powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1
 ```
 
+`python/run_local_stack.ps1` now starts the persistent local services:
+
+- merchant dashboard at `http://127.0.0.1:8000/aimipay/install`
+- buyer onboarding at `http://127.0.0.1:8011/aimipay/buyer/onboarding`
+
+If you want a one-shot payment demo after that:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File python/run_local_demo.ps1
+```
+
 Buyer-side install is now merchant-first:
 
 ```powershell

@@ -59,14 +59,25 @@ npm test
 npm run smoke:local
 ```
 
-### Option B: Run the local buyer + merchant demo
+### Option B: Run the local buyer + merchant flow
 
-Use this if you want to see the full local flow with a buyer, merchant, and payment lifecycle.
+Use this if you want the local services running first, then optionally execute a one-shot payment demo.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/bootstrap_local.ps1
 powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1
-powershell -ExecutionPolicy Bypass -File python/examples/run_local_demo.ps1
+powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1
+```
+
+That starts:
+
+- the merchant dashboard at `http://127.0.0.1:8000/aimipay/install`
+- the buyer onboarding UI at `http://127.0.0.1:8011/aimipay/buyer/onboarding`
+
+If you want a single demo purchase after the stack is up:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File python/run_local_demo.ps1
 ```
 
 If you prefer a single local install surface instead of separate scripts:

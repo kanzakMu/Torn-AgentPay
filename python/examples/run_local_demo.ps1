@@ -1,3 +1,7 @@
+param(
+  [int]$MerchantPort = 8000
+)
+
 $ErrorActionPreference = "Stop"
 
 if (-not $env:AIMIPAY_REPOSITORY_ROOT) {
@@ -8,9 +12,7 @@ if (-not $env:AIMIPAY_FULL_HOST) {
   $env:AIMIPAY_FULL_HOST = "http://127.0.0.1:9090"
 }
 
-if (-not $env:AIMIPAY_MERCHANT_PORT) {
-  $env:AIMIPAY_MERCHANT_PORT = "8000"
-}
+$env:AIMIPAY_MERCHANT_PORT = "$MerchantPort"
 
 if (-not $env:AIMIPAY_SETTLEMENT_BACKEND) {
   $env:AIMIPAY_SETTLEMENT_BACKEND = "local_smoke"
