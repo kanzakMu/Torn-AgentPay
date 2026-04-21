@@ -27,7 +27,7 @@ The current repository is already past the prototype stage. Today it includes:
 - merchant lifecycle: publish routes, expose manifest/discovery, execute settlement, reconcile status
 - agent installation paths for MCP, Codex-style hosts, OpenClaw, and Hermes-style connectors
 - buyer onboarding with wallet setup, funding guidance, merchant URL binding, and offer discovery
-- merchant install dashboard with route/plan editing, pause/resume, history, diff, and rollback
+- seller console with route/plan editing, pause/resume, history, diff, and rollback
 - Nile testnet deployment and end-to-end validation
 
 ## Who This Is For
@@ -83,7 +83,7 @@ powershell -ExecutionPolicy Bypass -File python/run_merchant_stack.ps1
 
 Then open:
 
-- the merchant dashboard at `http://127.0.0.1:8000/aimipay/install`
+- the seller console at `http://127.0.0.1:8000/aimipay/install`
 
 ### Option D: Run the full local demo
 
@@ -97,7 +97,7 @@ powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1
 
 That starts both local UIs:
 
-- the merchant dashboard at `http://127.0.0.1:8000/aimipay/install`
+- the seller console at `http://127.0.0.1:8000/aimipay/install`
 - the buyer onboarding UI at `http://127.0.0.1:8011/aimipay/buyer/onboarding`
 
 Then run a one-shot local purchase:
@@ -179,7 +179,7 @@ Notes:
 - expose manifest and discovery endpoints
 - accept payment intents
 - execute settlement and reconcile confirmations
-- manage configuration through the merchant dashboard
+- manage configuration through the seller console
 
 ## Merchant Runtime
 
@@ -187,7 +187,7 @@ The merchant side includes:
 
 - local bootstrap and doctor scripts
 - website/SaaS embed starter assets
-- a lightweight install dashboard at `/aimipay/install`
+- a lightweight seller console at `/aimipay/install`
 - route, plan, and branding persistence
 - config history, diff preview, rollback, and pause/resume controls
 

@@ -35,7 +35,7 @@ powershell -ExecutionPolicy Bypass -File python/run_merchant_stack.ps1
 
 That brings up:
 
-- merchant dashboard: `http://127.0.0.1:8000/aimipay/install`
+- seller console: `http://127.0.0.1:8000/aimipay/install`
 
 ### Run the full local demo
 

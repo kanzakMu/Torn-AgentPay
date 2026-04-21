@@ -1,6 +1,6 @@
-# Torn-AgentPay Merchant Install Kit
+# Torn-AgentPay Seller Install Kit
 
-This directory is the merchant-facing install layer for websites, SaaS apps, and API products that want Torn-AgentPay-style programmable receipts.
+This directory is the seller-facing install layer for websites, SaaS apps, and API products that want Torn-AgentPay-style programmable receipts.
 
 It is intentionally closer to a Stripe-style starter kit than a raw gateway code dump.
 
@@ -27,7 +27,7 @@ Then start the local merchant runtime:
 powershell -ExecutionPolicy Bypass -File python/run_merchant_stack.ps1
 ```
 
-Once the runtime is up, open the merchant install dashboard:
+Once the runtime is up, open the seller console:
 
 - `http://127.0.0.1:8000/aimipay/install`
 - check the "Resolved network profile" section to verify the runtime-selected network, chain RPC, contract, token, and settlement backend before exposing the merchant publicly
@@ -39,7 +39,7 @@ The merchant bootstrap creates:
 
 ## Merchant Doctor
 
-Validate the merchant install before exposing it to a site or SaaS shell:
+Validate the seller setup before exposing it to a site or SaaS shell:
 
 ```powershell
 .venv\Scripts\python.exe -m ops_tools.merchant_doctor
@@ -56,13 +56,13 @@ The quickest website path is:
 
 ## Important Scope Note
 
-This starter kit is the merchant install and presentation layer.
+This starter kit is the seller install and presentation layer.
 
 It helps merchants expose:
 
 - manifest and discovery endpoints
 - pricing and paid capability metadata
 - a website-friendly "Pay with Torn-AgentPay" surface
-- a dashboard-style install page at `/aimipay/install`
+- a dashboard-style seller console at `/aimipay/install`
 
 It does not replace the buyer-side agent payment flow. The actual purchase still happens through the buyer/agent lifecycle.

@@ -24,7 +24,7 @@ def test_example_merchant_app_exposes_install_dashboard() -> None:
     response = client.get("/aimipay/install")
 
     assert response.status_code == 200
-    assert "AimiPay Merchant Install Dashboard" in response.text
+    assert "Torn-AgentPay Seller Console" in response.text
     assert "/aimipay/assets/dashboard/install_dashboard.js" in response.text
 
 

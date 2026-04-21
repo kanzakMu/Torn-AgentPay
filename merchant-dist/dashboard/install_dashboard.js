@@ -168,7 +168,7 @@
     }
     var diff = payload.diff || {};
     title.textContent = "Diff Preview";
-    message.textContent = "Revision " + revision + " would change the merchant config in these ways.";
+    message.textContent = "Revision " + revision + " would change the seller settings in these ways.";
     summary.innerHTML = summarizeDiff(diff).map(function (item) {
       return statusBadge(item.label + ": " + item.count, item.count ? item.tone : "neutral");
     }).join("");
@@ -218,7 +218,7 @@
         )
       );
     });
-    cards.innerHTML = cardHtml.length ? cardHtml.join("") : renderChangeCard("No Differences", "neutral", ["This revision matches the current config."]);
+      cards.innerHTML = cardHtml.length ? cardHtml.join("") : renderChangeCard("No Differences", "neutral", ["This revision matches the current seller settings."]);
     panel.style.display = "block";
   }
 
@@ -317,7 +317,7 @@
       preview.textContent = JSON.stringify(payload, null, 2);
       showOperationBanner(
         existing ? "Route Updated" : "Route Saved",
-        existing ? "The route was updated and republished locally." : "A new route was added to the merchant config.",
+        existing ? "The route was updated and republished locally." : "A new route was added to the seller settings.",
         {
           routes_added: existing ? [] : [payload],
           routes_removed: [],
@@ -368,7 +368,7 @@
             method: decodeURIComponent(button.getAttribute("data-delete-method") || "POST")
           })
         });
-        showOperationBanner("Route Deleted", "The route was removed from the merchant config.", {
+        showOperationBanner("Route Deleted", "The route was removed from the seller settings.", {
           routes_added: [],
           routes_removed: route ? [route] : [],
           routes_changed: [],
@@ -436,7 +436,7 @@
         await fetch("/aimipay/install/config/plan/" + encodeURIComponent(decodeURIComponent(button.getAttribute("data-delete-plan"))), {
           method: "DELETE"
         });
-        showOperationBanner("Plan Deleted", "The plan was removed from the merchant config.", {
+        showOperationBanner("Plan Deleted", "The plan was removed from the seller settings.", {
           routes_added: [],
           routes_removed: [],
           routes_changed: [],
@@ -481,7 +481,7 @@
         await postJson("/aimipay/install/config/rollback/" + revision, {});
         showOperationBanner(
           "Rollback Applied",
-          "The merchant config was restored from revision " + revision + ".",
+          "The seller settings were restored from revision " + revision + ".",
           diffPayload.diff || {}
         );
         await refresh();
@@ -526,7 +526,7 @@
       preview.textContent = JSON.stringify(payload, null, 2);
       showOperationBanner(
         existing ? "Plan Updated" : "Plan Saved",
-        existing ? "The plan was updated locally." : "A new plan was added to the merchant config.",
+        existing ? "The plan was updated locally." : "A new plan was added to the seller settings.",
         {
           routes_added: [],
           routes_removed: [],
@@ -585,7 +585,7 @@
       });
       showOperationBanner(
         "Branding Saved",
-        "Merchant branding was updated for the install dashboard and public config.",
+        "Seller branding was updated for the console and public config.",
         {
           service_changed: false,
           branding_changed: true,
@@ -730,7 +730,7 @@
     );
     setHtml(
       "brand-config",
-      "<div style='font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:#0f766e;'>Brand config</div>" +
+      "<div style='font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:#0f766e;'>Brand settings</div>" +
       "<div style='margin-top:10px;display:grid;gap:8px;color:#475569;line-height:1.7;'>" +
       "<div><strong>Service:</strong> " + (publicConfig && publicConfig.service_name ? publicConfig.service_name : "n/a") + "</div>" +
       "<div><strong>Accent color:</strong> <span style='display:inline-block;width:12px;height:12px;border-radius:999px;background:" + (brand.accent_color || "#0f766e") + ";margin-right:8px;vertical-align:middle;'></span>" + (brand.accent_color || "#0f766e") + "</div>" +
@@ -767,8 +767,8 @@
     var assetLinks = [
       { label: "Website starter script", href: "/aimipay/assets/website/aimipay.checkout.js" },
       { label: "Website embed example", href: "/aimipay/assets/website/embed.checkout.html" },
-      { label: "Public merchant config", href: "/aimipay/assets/website/.generated/merchant.public.json" },
-      { label: "Merchant install kit README", href: "/aimipay/assets/README.md" }
+      { label: "Public seller config", href: "/aimipay/assets/website/.generated/merchant.public.json" },
+      { label: "Seller install kit README", href: "/aimipay/assets/README.md" }
     ];
     setHtml(
       "asset-links",
@@ -789,7 +789,7 @@
     }
     await renderDashboard();
   } catch (error) {
-    setHtml("health-status", "Failed to load merchant dashboard data.");
+    setHtml("health-status", "Failed to load seller console data.");
     setHtml("manifest-status", String(error));
     setHtml("discover-status", "Check whether the merchant runtime is running and public config exists.");
   }

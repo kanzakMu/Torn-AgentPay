@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AimiPay Merchant Install Dashboard</title>
+  <title>Torn-AgentPay Seller Console</title>
 </head>
 <body style="margin:0;background:#f8fafc;color:#0f172a;font-family:'Segoe UI',Arial,sans-serif;">
   <main style="max-width:1120px;margin:0 auto;padding:40px 24px 80px;">
     <section style="display:grid;gap:18px;grid-template-columns:2fr 1fr;align-items:start;">
       <div style="padding:28px;border-radius:24px;background:linear-gradient(135deg,#ecfeff 0%,#ffffff 55%,#f8fafc 100%);border:1px solid #dbeafe;box-shadow:0 20px 60px rgba(15,23,42,0.06);">
-        <div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;font-weight:700;color:#0f766e;">AimiPay Merchant</div>
-        <h1 style="margin:10px 0 8px;font-size:40px;line-height:1.05;">Install Dashboard</h1>
+        <div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;font-weight:700;color:#0f766e;">Torn-AgentPay Seller</div>
+        <h1 style="margin:10px 0 8px;font-size:40px;line-height:1.05;">Seller Console</h1>
         <p style="margin:0;max-width:760px;font-size:16px;line-height:1.7;color:#475569;">
-          This page gives a merchant the Stripe-plugin-style control surface: setup health, discovery links, and website embed instructions in one place.
+          This page gives a seller the Stripe-plugin-style control surface: runtime health, discovery links, offer publishing, and website embed instructions in one place.
         </p>
         <div id="hero-summary" style="margin-top:18px;display:flex;gap:12px;flex-wrap:wrap;"></div>
       </div>
@@ -30,7 +30,7 @@
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
         <div>
           <div id="operation-banner-title" style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:#166534;">Saved</div>
-          <div id="operation-banner-message" style="margin-top:6px;font-size:18px;font-weight:700;color:#14532d;">Your merchant config was updated.</div>
+          <div id="operation-banner-message" style="margin-top:6px;font-size:18px;font-weight:700;color:#14532d;">Your seller settings were updated.</div>
           <div id="operation-banner-summary" style="margin-top:8px;color:#166534;line-height:1.7;"></div>
         </div>
         <button id="operation-banner-close" type="button" style="border:none;border-radius:999px;background:#dcfce7;color:#166534;padding:10px 14px;font-weight:700;cursor:pointer;">Dismiss</button>
@@ -64,7 +64,7 @@
     </section>
 
     <section style="margin-top:28px;padding:24px;border-radius:24px;background:#ffffff;border:1px solid #e2e8f0;">
-      <h2 style="margin:0 0 14px;font-size:28px;">Merchant links</h2>
+        <h2 style="margin:0 0 14px;font-size:28px;">Seller links</h2>
       <div id="merchant-links" style="display:grid;gap:12px;"></div>
     </section>
 
@@ -83,7 +83,7 @@
     <section style="margin-top:28px;padding:24px;border-radius:24px;background:#ffffff;border:1px solid #e2e8f0;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <h2 style="margin:0;font-size:28px;">Version history</h2>
-        <div style="color:#475569;">Rollback if a merchant config change goes wrong.</div>
+        <div style="color:#475569;">Rollback if a seller settings change goes wrong.</div>
       </div>
       <div id="history-list" style="margin-top:18px;display:grid;gap:12px;">Loading history...</div>
       <div id="diff-preview-panel" style="display:none;margin-top:18px;padding:18px;border-radius:18px;border:1px solid #fed7aa;background:#fff7ed;">
@@ -101,9 +101,9 @@
 
     <section style="margin-top:28px;display:grid;gap:18px;grid-template-columns:1fr 1fr;">
       <div style="padding:24px;border-radius:24px;background:#ffffff;border:1px solid #e2e8f0;">
-        <h2 style="margin:0 0 14px;font-size:28px;">Route publishing draft</h2>
+        <h2 style="margin:0 0 14px;font-size:28px;">Offer route draft</h2>
         <p style="margin:0 0 16px;color:#475569;line-height:1.7;">
-          This is a merchant-facing configuration skeleton. It helps the merchant understand what fields must exist before a route is published.
+          Use this to shape a paid API or tool route before you publish it to buyers and agents.
         </p>
         <form id="route-draft-form" style="display:grid;gap:12px;">
           <label style="display:grid;gap:6px;">
@@ -123,22 +123,22 @@
             <textarea id="route-description-input" rows="3" style="padding:12px 14px;border-radius:14px;border:1px solid #cbd5e1;">Paid research API for coding and market tasks</textarea>
           </label>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button id="route-draft-button" type="button" style="justify-self:start;border:none;border-radius:999px;background:#0f766e;color:#ecfeff;padding:12px 16px;font-weight:700;cursor:pointer;">Generate route draft</button>
+            <button id="route-draft-button" type="button" style="justify-self:start;border:none;border-radius:999px;background:#0f766e;color:#ecfeff;padding:12px 16px;font-weight:700;cursor:pointer;">Preview route draft</button>
             <button id="route-save-button" type="button" style="justify-self:start;border:none;border-radius:999px;background:#111827;color:#ecfeff;padding:12px 16px;font-weight:700;cursor:pointer;">Save route</button>
           </div>
         </form>
       </div>
       <div style="padding:24px;border-radius:24px;background:#ffffff;border:1px solid #e2e8f0;">
         <h2 style="margin:0 0 14px;font-size:28px;">Route JSON preview</h2>
-        <pre id="route-draft-preview" style="margin:0;padding:18px;border-radius:18px;background:#0f172a;color:#e2e8f0;overflow:auto;font-size:13px;line-height:1.6;">Click "Generate route draft" to preview a merchant config block.</pre>
+        <pre id="route-draft-preview" style="margin:0;padding:18px;border-radius:18px;background:#0f172a;color:#e2e8f0;overflow:auto;font-size:13px;line-height:1.6;">Click "Preview route draft" to inspect the route block before saving it.</pre>
       </div>
     </section>
 
     <section style="margin-top:28px;display:grid;gap:18px;grid-template-columns:1fr 1fr;">
       <div style="padding:24px;border-radius:24px;background:#ffffff;border:1px solid #e2e8f0;">
-        <h2 style="margin:0 0 14px;font-size:28px;">Plan publishing draft</h2>
+        <h2 style="margin:0 0 14px;font-size:28px;">Plan draft</h2>
         <p style="margin:0 0 16px;color:#475569;line-height:1.7;">
-          Use this to shape the first paid plan a merchant wants to expose. It stays local to the page, but it mirrors the fields a real control plane would need.
+          Use this to shape a paid plan before you publish it to buyers and agents.
         </p>
         <form id="plan-draft-form" style="display:grid;gap:12px;">
           <label style="display:grid;gap:6px;">
@@ -158,22 +158,22 @@
             <input id="plan-subscribe-input" type="text" value="/billing/subscribe" style="padding:12px 14px;border-radius:14px;border:1px solid #cbd5e1;">
           </label>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button id="plan-draft-button" type="button" style="justify-self:start;border:none;border-radius:999px;background:#0f766e;color:#ecfeff;padding:12px 16px;font-weight:700;cursor:pointer;">Generate plan draft</button>
+            <button id="plan-draft-button" type="button" style="justify-self:start;border:none;border-radius:999px;background:#0f766e;color:#ecfeff;padding:12px 16px;font-weight:700;cursor:pointer;">Preview plan draft</button>
             <button id="plan-save-button" type="button" style="justify-self:start;border:none;border-radius:999px;background:#111827;color:#ecfeff;padding:12px 16px;font-weight:700;cursor:pointer;">Save plan</button>
           </div>
         </form>
       </div>
       <div style="padding:24px;border-radius:24px;background:#ffffff;border:1px solid #e2e8f0;">
         <h2 style="margin:0 0 14px;font-size:28px;">Plan JSON preview</h2>
-        <pre id="plan-draft-preview" style="margin:0;padding:18px;border-radius:18px;background:#0f172a;color:#e2e8f0;overflow:auto;font-size:13px;line-height:1.6;">Click "Generate plan draft" to preview a merchant plan block.</pre>
+        <pre id="plan-draft-preview" style="margin:0;padding:18px;border-radius:18px;background:#0f172a;color:#e2e8f0;overflow:auto;font-size:13px;line-height:1.6;">Click "Preview plan draft" to inspect the plan block before saving it.</pre>
       </div>
     </section>
 
     <section style="margin-top:28px;display:grid;gap:18px;grid-template-columns:1fr 1fr;">
       <div style="padding:24px;border-radius:24px;background:#ffffff;border:1px solid #e2e8f0;">
-        <h2 style="margin:0 0 14px;font-size:28px;">Branding editor preview</h2>
+        <h2 style="margin:0 0 14px;font-size:28px;">Branding preview</h2>
         <p style="margin:0 0 16px;color:#475569;line-height:1.7;">
-          This simulates a lightweight merchant branding step: change the public-facing title, support email, and accent color before embedding AimiPay into your site.
+          Update the public-facing title, support email, and accent color before exposing Torn-AgentPay on your site or SaaS product.
         </p>
         <form id="branding-form" style="display:grid;gap:12px;">
           <label style="display:grid;gap:6px;">
@@ -195,7 +195,7 @@
         </form>
       </div>
       <div style="padding:24px;border-radius:24px;background:#ffffff;border:1px solid #e2e8f0;">
-        <h2 style="margin:0 0 14px;font-size:28px;">Merchant card preview</h2>
+        <h2 style="margin:0 0 14px;font-size:28px;">Seller card preview</h2>
         <div id="branding-preview-card" style="padding:20px;border-radius:20px;border:1px solid #dbeafe;background:linear-gradient(180deg,#f8fffd 0%,#ffffff 100%);box-shadow:0 12px 40px rgba(15,118,110,0.08);">
           <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:#0f766e;">AimiPay</div>
           <h3 id="branding-preview-title" style="margin:8px 0 6px;font-size:28px;line-height:1.1;">Pay with AimiPay</h3>
