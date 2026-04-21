@@ -1,82 +1,75 @@
-# AimiPay Tron
+# Torn-AgentPay
 
-Tron-first programmable payment infrastructure for AI agents, APIs, and SaaS.
+Agent-native payment infrastructure for AI agents and merchants on Tron.
 
-This repository is the new mainline codebase. It is intentionally focused on:
+Torn-AgentPay lets an AI agent discover paid capabilities, open payment channels, submit payments, and drive settlement across onchain and offchain flows. It also gives merchants a local runtime, install flow, and lightweight control plane for publishing services to agents.
 
-- Tron
-- USDT-TRC20
-- agent-native service discovery
-- programmable payment channels
-- buyer/seller integration paths
+## What This Project Is
 
-This repository does not carry Solana as a product mainline. Solana is planned to move into a separate legacy/reference repository.
+This repository combines four pieces that usually live separately:
 
-## Current Scope
+- a Tron payment-channel contract
+- a Python buyer runtime for AI agents
+- a Python merchant runtime for sellers
+- install and distribution tooling for MCP, Codex-style hosts, and other agent runtimes
 
-- Solidity payment-channel contracts
-- TronWeb deployment and execution scripts
-- Hardhat tests for protocol behavior
-- Python buyer/seller/shared directories for the new Tron-first application layer
-- Discovery and integration specs for agent-native commerce
+The goal is simple:
 
-## Directory Layout
+**Give an AI agent a package or command, and let it install, discover offers, and pay for capabilities with minimal manual setup.**
 
-```text
-contracts/   Tron-first Solidity contracts
-scripts/     deploy/open/claim/close/cancel execution scripts
-test/        Hardhat protocol tests
-python/      buyer/seller/shared application layer
-examples/    minimal plan files and integration examples
-spec/        discovery and protocol documentation
-```
+## What Works Today
 
-## Product Direction
+The current repository is already past the prototype stage. Today it includes:
 
-- Default chain: Tron
-- Default asset: USDT-TRC20
-- Default narrative: agent-to-service programmable payments
+- Tron payment-channel contracts and execution scripts
+- local Hardhat tests and smoke flows
+- buyer lifecycle: discover, estimate, create payment, execute, reconcile, finalize
+- merchant lifecycle: publish routes, expose manifest/discovery, execute settlement, reconcile status
+- agent installation paths for MCP, Codex-style hosts, OpenClaw, and Hermes-style connectors
+- buyer onboarding with wallet setup, funding guidance, merchant URL binding, and offer discovery
+- merchant install dashboard with route/plan editing, pause/resume, history, diff, and rollback
+- Nile testnet deployment and end-to-end validation
 
-## Near-Term Milestones
+## Who This Is For
 
-1. Harden payment lifecycle with confirmation, reconciliation, and stable error contracts
-2. Eliminate protocol-critical JS subprocess dependencies with embeddable shared implementations
-3. Expand MCP compatibility beyond minimal tools/list and tools/call skeleton support
-4. Validate production-style recovery and reconciliation against Nile
+This repository is most useful if you are:
+
+- building an AI agent that needs to buy external services
+- building a merchant runtime that wants to sell agent-callable capabilities
+- experimenting with agent commerce, micropayments, or capability marketplaces
+- integrating MCP or similar host environments with payment-aware tools
 
 ## Quick Start
 
+Before you start:
+
+- Node.js 20+
+- Python 3.11+
+- Windows PowerShell for the install scripts below
+
+Choose the path that matches what you want to do.
+
+### Option A: Validate the protocol locally
+
+Use this if you want to verify the contract and local payment flow first.
+
 ```bash
 npm install
-npm run build
 npm test
 npm run smoke:local
 ```
 
-## Ordinary User Install
+### Option B: Run the local buyer + merchant demo
 
-For a Windows user who just wants a local demo without stitching the stack together manually:
-
-1. Install the official Python 3.11+ distribution and Node.js 20+
-2. Run:
+Use this if you want to see the full local flow with a buyer, merchant, and payment lifecycle.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/bootstrap_local.ps1
+powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1
+powershell -ExecutionPolicy Bypass -File python/examples/run_local_demo.ps1
 ```
 
-3. Start the local end-to-end demo:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1
-```
-
-One-command path:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File python/install_and_run.ps1
-```
-
-Foolproof local setup hub:
+If you prefer a single local install surface instead of separate scripts:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/start_easy_setup.ps1
@@ -86,111 +79,158 @@ Then open:
 
 - `http://127.0.0.1:8010/aimipay/easy-setup`
 
-GitHub direct install:
+### Option C: Install into an AI host
+
+Use this if you want an AI agent host to install Torn-AgentPay as a local package.
+
+Codex-style home-local install:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/kanzakMu/Torn-AgentPay/main/python/install_from_github.ps1 -OutFile $env:TEMP\\aimipay-install.ps1; & $env:TEMP\\aimipay-install.ps1 -RepoUrl https://github.com/kanzakMu/Torn-AgentPay.git"
+powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target codex --mode home-local --merchant-url https://merchant.example
 ```
 
-GitHub direct install for AI agent hosts:
+Install all supported local agent artifacts:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target all --mode home-local --merchant-url https://merchant.example
+```
+
+Supported host targets include:
+
+- `codex`
+- `mcp`
+- `claude`
+- `cua`
+- `openclaw`
+- `hermes`
+- `all`
+
+### Option D: Install directly from GitHub
+
+Use this if you want the installer to fetch the repository from GitHub and install the agent package in one step.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/kanzakMu/Torn-AgentPay/main/python/install_agent_from_github.ps1 -OutFile $env:TEMP\\aimipay-agent-install.ps1; & $env:TEMP\\aimipay-agent-install.ps1 -RepoUrl https://github.com/kanzakMu/Torn-AgentPay.git -Target codex -MerchantUrl https://merchant.example"
 ```
 
-Batch wrapper:
+Notes:
 
-```bat
-python\install_and_run.bat
-```
+- the `raw.githubusercontent.com` bootstrap path works only when the repository is public
+- the installer itself clones from the `RepoUrl` you pass in
+- replace `https://merchant.example` with a real merchant URL if you want onboarding to bind a merchant immediately
 
-Merchant install path:
+## Main Flows
+
+### Buyer / Agent
+
+- install agent package
+- create or load buyer wallet
+- connect a merchant URL
+- discover offers
+- open a payment channel
+- create and execute a payment
+- reconcile until terminal status
+
+### Merchant / Seller
+
+- install merchant runtime
+- configure service metadata, routes, and plans
+- expose manifest and discovery endpoints
+- accept payment intents
+- execute settlement and reconcile confirmations
+- manage configuration through the merchant dashboard
+
+## Merchant Runtime
+
+The merchant side includes:
+
+- local bootstrap and doctor scripts
+- website/SaaS embed starter assets
+- a lightweight install dashboard at `/aimipay/install`
+- route, plan, and branding persistence
+- config history, diff preview, rollback, and pause/resume controls
+
+Start it locally with:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1
 powershell -ExecutionPolicy Bypass -File python/run_merchant_stack.ps1
 ```
 
-Docker local stack:
+Then open:
 
-```bash
-docker compose -f docker-compose.local.yml up --build
+- `http://127.0.0.1:8000/aimipay/install`
+
+## AI Host Distribution
+
+This repository already includes agent-facing packaging and onboarding for:
+
+- Codex-style hosts
+- MCP hosts
+- Claude Desktop-style configs
+- CUA-style configs
+- OpenClaw-style configs
+- Hermes-style configs
+
+See:
+
+- [Agent Distribution Guide](agent-dist/README.md)
+- [Host Install Checklist](agent-dist/HOST_INSTALL_CHECKLIST.md)
+- [MCP Integration Guide](spec/MCP_INTEGRATION_GUIDE.md)
+- [Agent Integration Guide](spec/AGENT_INTEGRATION_GUIDE.md)
+
+## Testnet Status
+
+The Nile testnet path has already been exercised end-to-end:
+
+- mock token deployed
+- payment-channel contract deployed
+- buyer and seller wallets prepared
+- onchain open + claim validated
+- Python merchant runtime lifecycle validated against Nile
+
+Operational references:
+
+- [Nile Launch Checklist](python/NILE_LAUNCH_CHECKLIST.md)
+- [Deployment Runbook](python/DEPLOYMENT_RUNBOOK.md)
+- [Mainnet Cutover Checklist](python/MAINNET_CUTOVER_CHECKLIST.md)
+
+## Repository Layout
+
+```text
+contracts/      Payment-channel contracts
+scripts/        Deploy/open/claim/close/cancel helpers
+test/           Hardhat tests and smoke coverage
+python/         Buyer, seller, shared runtime, install tooling, tests
+merchant-dist/  Merchant install/dashboard/embed assets
+agent-dist/     Agent package manifests, host templates, onboarding assets
+spec/           Protocol and integration documentation
 ```
 
-Install doctor report output:
+## Recommended Reading Order
 
-```powershell
-.venv\Scripts\python.exe -m ops_tools.install_doctor --format markdown --output python/.docker-local/install-doctor.md
-.venv\Scripts\python.exe -m ops_tools.install_doctor --format html --output python/.docker-local/install-doctor.html
-```
+If you're new to the project, this is the fastest way in:
 
-Agent package install:
+1. Read this README
+2. Read the [Protocol Reference](spec/PROTOCOL_REFERENCE.md)
+3. Read the [Agent Integration Guide](spec/AGENT_INTEGRATION_GUIDE.md)
+4. Read the [Python Runtime Guide](python/README.md)
+5. Read the [Agent Distribution Guide](agent-dist/README.md)
+6. Read the [Merchant Install Guide](merchant-dist/README.md)
 
-```powershell
-.venv\Scripts\python.exe -m ops_tools.install_agent_package --target all --mode repo-local
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target all --mode home-local
-powershell -ExecutionPolicy Bypass -File python/register_codex_home_local.ps1 -RunDoctor
-```
+## Security Notes
 
-Batch wrapper:
+- Never commit real wallet files, private keys, or live env files
+- Use the provided `*.example` files as templates
+- Treat testnet and mainnet keys as secrets, even in demos
 
-```bat
-python\install_agent_package.bat --target all --mode repo-local
-```
+## Project Positioning
 
-Distribution docs:
+Torn-AgentPay is not just a contract repository and not just an MCP wrapper. It is a full-stack attempt at agent commerce infrastructure:
 
-- [agent-dist/README.md](/E:/trade/aimicropay-tron/agent-dist/README.md)
-- [agent-dist/HOST_INSTALL_CHECKLIST.md](/E:/trade/aimicropay-tron/agent-dist/HOST_INSTALL_CHECKLIST.md)
-- [merchant-dist/README.md](/E:/trade/aimicropay-tron/merchant-dist/README.md)
+- programmable payments on Tron
+- offchain lifecycle management
+- merchant tooling
+- AI host installation and onboarding
 
-4. If you want an install-only health check first:
-
-```powershell
-.venv\Scripts\python.exe -m ops_tools.install_doctor
-```
-
-The buyer bootstrap now also renders a first-start onboarding page at [buyer-onboarding.html](/E:/trade/aimicropay-tron/python/.agent/buyer-onboarding.html) so users can see the merchant URL, wallet status, next step, and discovered offers in one place.
-It also starts a local onboarding UI service at `http://127.0.0.1:8011/aimipay/buyer/onboarding` so that page can submit a merchant URL and refresh offer discovery directly.
-
-Wallet setup for AI buyers:
-
-```powershell
-.venv\Scripts\python.exe -m ops_tools.wallet_setup --force-create
-.venv\Scripts\python.exe -m ops_tools.wallet_funding
-```
-
-Funding checklist:
-
-- [python/BUYER_FUNDING_CHECKLIST.md](/E:/trade/aimicropay-tron/python/BUYER_FUNDING_CHECKLIST.md)
-
-`npm run smoke:local` performs a local deploy -> approve -> open -> claim pipeline on Hardhat and prints a JSON summary.
-
-## Notes
-
-- The files under `contracts/`, `scripts/`, and `test/` are the verified starting assets from the previous prototype and now serve as the seed of this clean Tron-first repository.
-- The Python layer is intentionally reset to a clean structure and should be rebuilt around Tron-first defaults rather than old multi-chain compatibility baggage.
-- Minimal app/runtime examples now live under `python/examples/`.
-- A minimal project-shaped integration template now lives under `python/sample_project/`.
-
-## Integration Docs
-
-- `spec/AGENT_INTEGRATION_GUIDE.md`
-- `spec/PROTOCOL_REFERENCE.md`
-- `spec/MCP_INTEGRATION_GUIDE.md`
-- `SHOWCASE.md`
-
-## Lifecycle API
-
-Current management endpoints are designed around a stable payment lifecycle:
-
-- `GET /.well-known/aimipay.json`
-- `GET /_aimipay/discover`
-- `GET /_aimipay/protocol/reference`
-- `POST /_aimipay/channels/open`
-- `POST /_aimipay/payment-intents`
-- `POST /_aimipay/settlements/execute`
-- `POST /_aimipay/settlements/reconcile`
-- `GET /_aimipay/payments/{payment_id}`
-- `GET /_aimipay/payments/recover`
-- `GET /_aimipay/payments/pending`
+If your goal is to let AI agents install a package and immediately start paying for capabilities, this repository is the core of that workflow.
