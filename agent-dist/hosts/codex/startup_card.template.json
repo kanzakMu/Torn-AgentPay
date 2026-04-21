@@ -1,0 +1,15 @@
+{
+  "schema_version": "aimipay.startup-card.v1",
+  "host": "codex",
+  "render_as": "plugin_banner",
+  "fields": {
+    "banner_title": "title",
+    "banner_subtitle": "summary",
+    "quick_action_label": "primary_action.label",
+    "quick_action_action": "primary_action.action",
+    "secondary_actions": "secondary_actions",
+    "details_checklist": "checklist",
+    "details_resources": "resources"
+  },
+  "visibility_rule": "show while status.completed is false"
+}

@@ -1,0 +1,47 @@
+groups:
+  - name: aimipay-runtime
+    rules:
+      - alert: AimiPayRuntimeDegraded
+        expr: aimipay_runtime_ok == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: AimiPay runtime preflight or health checks are failing
+          description: The merchant runtime is exposing aimipay_runtime_ok=0. Check /_aimipay/ops/health and deployment inputs.
+
+      - alert: AimiPayUnfinishedPaymentsGrowing
+        expr: aimipay_unfinished_payments > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Unfinished AimiPay payments backlog is growing
+          description: There are more than 10 unfinished payments. Inspect worker cadence, reconcile flow, and settlement dependencies.
+
+      - alert: AimiPayConfirmationRetriesExhausted
+        expr: increase(aimipay_settlement_confirmation_retry_exhausted_total[10m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: AimiPay confirmation retries were exhausted
+          description: At least one payment exhausted its confirmation retry budget in the last 10 minutes.
+
+      - alert: AimiPayWorkerErrors
+        expr: increase(aimipay_worker_errors_total[10m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: AimiPay recovery worker has errors
+          description: The recovery worker emitted one or more errors in the last 10 minutes. Check settlement execution and confirmer dependencies.
+
+      - alert: AimiPayExecutionFailuresSpike
+        expr: increase(aimipay_settlement_execution_failed_total[10m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: AimiPay execution failures are spiking
+          description: Settlement execution failures exceeded the warning threshold in the last 10 minutes.

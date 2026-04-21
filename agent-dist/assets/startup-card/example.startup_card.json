@@ -1,0 +1,37 @@
+{
+  "schema_version": "aimipay.startup-card.v1",
+  "kind": "onboarding_card",
+  "visible": true,
+  "tone": "warning",
+  "title": "Fund Wallet",
+  "summary": "Fund the wallet before buying. [1] Add TRX [2] Add USDT",
+  "primary_action": {
+    "action": "fund_wallet",
+    "label": "Fund Wallet"
+  },
+  "secondary_actions": [
+    {
+      "action": "aimipay.get_startup_onboarding",
+      "label": "View Onboarding Details"
+    }
+  ],
+  "checklist": [
+    "Add TRX for gas",
+    "Add USDT for payments"
+  ],
+  "resources": [
+    {
+      "label": "Testnet Faucet",
+      "url": "https://example.test/faucet"
+    },
+    {
+      "label": "Funding Guide",
+      "url": "https://example.test/guide"
+    }
+  ],
+  "status": {
+    "completed": false,
+    "next_step": "fund_wallet",
+    "action_required": "fund_wallet"
+  }
+}

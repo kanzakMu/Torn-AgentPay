@@ -1,0 +1,26 @@
+{
+  "name": "aimipay-agent",
+  "version": "0.1.0",
+  "description": "Install AimiPay as a Codex-local plugin with MCP payment tools and a companion skill.",
+  "author": {
+    "name": "AimiPay"
+  },
+  "license": "MIT",
+  "keywords": ["aimipay", "tron", "mcp", "agent-payments"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "AimiPay Agent",
+    "shortDescription": "Installable Tron payment tools for Codex-style agents.",
+    "longDescription": "Adds AimiPay MCP tools, install doctor, and companion skill guidance so agent hosts can discover and pay for merchant capabilities.",
+    "developerName": "AimiPay",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": [
+      "Install the AimiPay MCP payment tools for me.",
+      "List paid merchant offers and estimate the budget.",
+      "Run the AimiPay install doctor and summarize next steps."
+    ],
+    "brandColor": "#0F766E"
+  }
+}

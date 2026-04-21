@@ -1,0 +1,34 @@
+{
+  "schema_version": "aimipay.startup-card-theme.v1",
+  "brand": {
+    "name": "AimiPay",
+    "font_stack": "\"Segoe UI\", \"Inter\", Arial, sans-serif"
+  },
+  "tones": {
+    "info": {
+      "background": "#ECFDF5",
+      "border": "#34D399",
+      "text": "#065F46",
+      "icon": "icons/info-badge.svg"
+    },
+    "warning": {
+      "background": "#FFF7ED",
+      "border": "#FB923C",
+      "text": "#9A3412",
+      "icon": "icons/fund-wallet.svg"
+    },
+    "success": {
+      "background": "#EFF6FF",
+      "border": "#60A5FA",
+      "text": "#1D4ED8",
+      "icon": "icons/ready-to-buy.svg"
+    }
+  },
+  "layout": {
+    "radius_px": 14,
+    "padding_px": 16,
+    "gap_px": 12,
+    "title_size_px": 18,
+    "body_size_px": 14
+  }
+}

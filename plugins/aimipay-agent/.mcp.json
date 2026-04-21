@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "aimipay-agent": {
+      "command": "python",
+      "args": [
+        "-m",
+        "agent_entrypoints.aimipay_mcp_stdio"
+      ],
+      "env": {
+        "PYTHONPATH": "[TODO: repo-python-path]",
+        "AIMIPAY_REPOSITORY_ROOT": "[TODO: repo-root]",
+        "AIMIPAY_FULL_HOST": "http://127.0.0.1:9090",
+        "AIMIPAY_MERCHANT_URLS": "http://127.0.0.1:8000"
+      }
+    }
+  }
+}

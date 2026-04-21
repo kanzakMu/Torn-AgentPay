@@ -1,0 +1,19 @@
+{
+  "_comment": "Concrete Claude Desktop local example. Replace paths and URLs for your machine before use.",
+  "mcpServers": {
+    "aimipay-agent": {
+      "command": "E:\\trade\\aimicropay-tron\\.venv\\Scripts\\python.exe",
+      "args": [
+        "-m",
+        "agent_entrypoints.aimipay_mcp_stdio"
+      ],
+      "env": {
+        "PYTHONPATH": "E:\\trade\\aimicropay-tron\\python;E:\\trade\\aimicropay-tron\\python\\.vendor",
+        "AIMIPAY_REPOSITORY_ROOT": "E:\\trade\\aimicropay-tron",
+        "AIMIPAY_FULL_HOST": "http://127.0.0.1:9090",
+        "AIMIPAY_MERCHANT_URLS": "http://127.0.0.1:8000",
+        "AIMIPAY_SETTLEMENT_BACKEND": "local_smoke"
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "aimipay-local",
+  "interface": {
+    "displayName": "AimiPay Local Plugins"
+  },
+  "plugins": [
+    {
+      "name": "aimipay-agent",
+      "source": {
+        "source": "local",
+        "path": "./plugins/aimipay-agent"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

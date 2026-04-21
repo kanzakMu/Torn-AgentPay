@@ -1,0 +1,31 @@
+{
+  "name": "aimipay-agent-connector",
+  "version": "0.1.0",
+  "kind": "agent-connector-package",
+  "display_name": "AimiPay Agent Connector",
+  "description": "Installable connector metadata for agent hosts that need AimiPay payment tools, local MCP wiring, and environment templates.",
+  "capabilities": [
+    "mcp-tools",
+    "codex-skill",
+    "codex-plugin",
+    "install-doctor",
+    "target-dry-run",
+    "claude-host-config",
+    "cua-host-config",
+    "openclaw-host-config",
+    "hermes-host-config",
+    "startup-onboarding"
+  ],
+  "artifacts": {
+    "skill_path": "skills/aimipay-agent",
+    "plugin_path": "plugins/aimipay-agent",
+    "mcp_module": "agent_entrypoints.aimipay_mcp_stdio",
+    "host_config_templates": [
+      "agent-dist/hosts/claude-desktop/claude_desktop_config.template.json",
+      "agent-dist/hosts/cua/cua_mcp_config.template.json",
+      "agent-dist/hosts/openclaw/openclaw_mcp_config.template.json",
+      "agent-dist/hosts/hermes/hermes_mcp_config.template.json",
+      "agent-dist/hosts/generic/generic_mcp_server.template.json"
+    ]
+  }
+}

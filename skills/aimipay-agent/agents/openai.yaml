@@ -1,0 +1,8 @@
+interface:
+  display_name: "AimiPay Agent"
+  short_description: "Install and use AimiPay as a local payment skill and MCP toolchain."
+  brand_color: "#0F766E"
+  default_prompt: "Use $aimipay-agent to install or operate the AimiPay plugin, MCP server, and local payment demo."
+
+policy:
+  allow_implicit_invocation: true

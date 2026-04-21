@@ -1,0 +1,26 @@
+{
+  "name": "aimicropay-tron",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "smoke:local": "hardhat run scripts/local_smoke_pipeline.js",
+    "deploy:channel": "node scripts/deploy_channel.js",
+    "deploy:mock-usdt": "node scripts/deploy_mock_usdt.js",
+    "open:channel": "node scripts/open_channel_exec.js",
+    "claim:payment": "node scripts/claim_payment_exec.js",
+    "close:channel": "node scripts/close_channel_exec.js",
+    "cancel:channel": "node scripts/cancel_channel_exec.js"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "@openzeppelin/contracts": "^5.3.0",
+    "chai": "^6.2.2",
+    "ethers": "^6.15.0",
+    "hardhat": "^2.24.3"
+  },
+  "dependencies": {
+    "tronweb": "^6.2.2"
+  }
+}

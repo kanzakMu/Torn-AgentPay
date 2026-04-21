@@ -1,0 +1,20 @@
+{
+  "_comment": "After the host connects, surface initialize.result.instructions or initialize.result.meta['aimipay/startupOnboarding'] on the first screen if your host supports custom server metadata.",
+  "mcpServers": {
+    "aimipay-agent": {
+      "command": "C:\\path\\to\\python.exe",
+      "args": [
+        "-m",
+        "agent_entrypoints.aimipay_mcp_stdio"
+      ],
+      "env": {
+        "PYTHONPATH": "E:\\trade\\aimicropay-tron\\python;E:\\trade\\aimicropay-tron\\python\\.vendor",
+        "AIMIPAY_REPOSITORY_ROOT": "E:\\trade\\aimicropay-tron",
+        "AIMIPAY_FULL_HOST": "http://127.0.0.1:9090",
+        "AIMIPAY_MERCHANT_URLS": "http://127.0.0.1:8000",
+        "AIMIPAY_BUYER_ADDRESS": "TRX_BUYER",
+        "AIMIPAY_BUYER_PRIVATE_KEY": "buyer_private_key"
+      }
+    }
+  }
+}

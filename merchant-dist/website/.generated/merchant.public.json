@@ -1,0 +1,20 @@
+{
+  "schema_version": "aimipay.merchant-install.v1",
+  "service_name": "Research Copilot",
+  "service_description": "Pay-per-use research and market data",
+  "brand": {
+    "display_title": "Pay with AimiPay",
+    "accent_color": "#0f766e",
+    "support_email": "support@example.com"
+  },
+  "merchant_base_url": "http://127.0.0.1:8126",
+  "manifest_url": "http://127.0.0.1:8126/.well-known/aimipay.json",
+  "discover_url": "http://127.0.0.1:8126/_aimipay/discover",
+  "protocol_reference_url": "http://127.0.0.1:8126/_aimipay/protocol/reference",
+  "ops_health_url": "http://127.0.0.1:8126/_aimipay/ops/health",
+  "integration_targets": [
+    "website",
+    "saas",
+    "api"
+  ]
+}

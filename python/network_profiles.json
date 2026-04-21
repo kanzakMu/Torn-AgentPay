@@ -1,0 +1,67 @@
+{
+  "profiles": {
+    "local": {
+      "display_name": "Local Smoke",
+      "profile_ready": true,
+      "warnings": [],
+      "env": {
+        "AIMIPAY_FULL_HOST": "http://127.0.0.1:9090",
+        "AIMIPAY_SETTLEMENT_BACKEND": "local_smoke",
+        "AIMIPAY_CHAIN_ID": "31337",
+        "AIMIPAY_CONTRACT_ADDRESS": "TRX_CONTRACT",
+        "AIMIPAY_TOKEN_ADDRESS": "TRX_USDT",
+        "AIMIPAY_NETWORK_NAME": "local-smoke",
+        "AIMIPAY_FAUCET_URL": "",
+        "AIMIPAY_FUNDING_GUIDE_URL": "",
+        "AIMIPAY_MIN_TRX_BALANCE_SUN": "0",
+        "AIMIPAY_MIN_TOKEN_BALANCE_ATOMIC": "0"
+      }
+    },
+    "nile": {
+      "display_name": "Tron Nile Testnet",
+      "profile_ready": true,
+      "warnings": [
+        "Use a merchant-facing public base URL in AIMIPAY_PUBLIC_BASE_URL before external testing."
+      ],
+      "env": {
+        "AIMIPAY_FULL_HOST": "https://nile.trongrid.io",
+        "AIMIPAY_SETTLEMENT_BACKEND": "claim_script",
+        "AIMIPAY_CHAIN_ID": "3448148188",
+        "AIMIPAY_CONTRACT_ADDRESS": "41f21d7e3bab38a0c91a2c65ccc2e3e766a4463d24",
+        "AIMIPAY_TOKEN_ADDRESS": "41ff44ed8d6177ebc0c8655b531af29cd61c3986e3",
+        "AIMIPAY_NETWORK_NAME": "tron-nile",
+        "AIMIPAY_FAUCET_URL": "https://nileex.io/join/getJoinPage",
+        "AIMIPAY_FUNDING_GUIDE_URL": "https://developers.tron.network/docs/getting-testnet-tokens",
+        "AIMIPAY_MIN_TRX_BALANCE_SUN": "1000000",
+        "AIMIPAY_MIN_TOKEN_BALANCE_ATOMIC": "1000000"
+      }
+    },
+    "mainnet": {
+      "display_name": "Tron Mainnet",
+      "profile_ready": false,
+      "warnings": [
+        "Mainnet defaults are not bundled yet. Set contract and token addresses before going live."
+      ],
+      "env": {
+        "AIMIPAY_FULL_HOST": "https://api.trongrid.io",
+        "AIMIPAY_SETTLEMENT_BACKEND": "claim_script",
+        "AIMIPAY_CHAIN_ID": "728126428",
+        "AIMIPAY_CONTRACT_ADDRESS": "",
+        "AIMIPAY_TOKEN_ADDRESS": "",
+        "AIMIPAY_NETWORK_NAME": "tron-mainnet",
+        "AIMIPAY_FAUCET_URL": "",
+        "AIMIPAY_FUNDING_GUIDE_URL": "https://developers.tron.network/",
+        "AIMIPAY_MIN_TRX_BALANCE_SUN": "5000000",
+        "AIMIPAY_MIN_TOKEN_BALANCE_ATOMIC": "1000000"
+      }
+    },
+    "custom": {
+      "display_name": "Custom",
+      "profile_ready": false,
+      "warnings": [
+        "Custom keeps your existing env values. Fill the chain and contract fields manually."
+      ],
+      "env": {}
+    }
+  }
+}

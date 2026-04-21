@@ -1,0 +1,32 @@
+services:
+  aimipay-merchant:
+    build:
+      context: .
+      dockerfile: docker/local.Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      AIMIPAY_REPOSITORY_ROOT: /app
+      AIMIPAY_FULL_HOST: http://127.0.0.1:9090
+      AIMIPAY_SETTLEMENT_BACKEND: local_smoke
+      AIMIPAY_CHAIN_ID: "31337"
+      AIMIPAY_MERCHANT_PORT: "8000"
+      AIMIPAY_SELLER_ADDRESS: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+      AIMIPAY_SELLER_PRIVATE_KEY: seller_private_key
+      AIMIPAY_CONTRACT_ADDRESS: TRX_CONTRACT
+      AIMIPAY_TOKEN_ADDRESS: TRX_USDT
+      AIMIPAY_SQLITE_PATH: /app/python/.docker-local/payments.db
+    volumes:
+      - ./python/.docker-local:/app/python/.docker-local
+
+  aimipay-doctor:
+    build:
+      context: .
+      dockerfile: docker/local.Dockerfile
+    profiles: ["doctor"]
+    command: ["python3", "-m", "ops_tools.install_doctor", "--format", "markdown", "--output", "/app/python/.docker-local/install-doctor.md"]
+    environment:
+      AIMIPAY_REPOSITORY_ROOT: /app
+      AIMIPAY_SQLITE_PATH: /app/python/.docker-local/payments.db
+    volumes:
+      - ./python/.docker-local:/app/python/.docker-local

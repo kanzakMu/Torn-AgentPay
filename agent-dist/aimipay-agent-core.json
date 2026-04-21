@@ -1,0 +1,25 @@
+{
+  "name": "aimipay-agent-core",
+  "version": "0.1.0",
+  "description": "Shared installation metadata for AimiPay agent-native distribution targets.",
+  "install_targets": [
+    "codex-skill",
+    "codex-plugin",
+    "mcp-package",
+    "connector-manifest",
+    "claude-host-config",
+    "cua-host-config",
+    "openclaw-host-config",
+    "hermes-host-config"
+  ],
+  "entrypoints": {
+    "mcp_stdio_module": "agent_entrypoints.aimipay_mcp_stdio",
+    "installer_module": "ops_tools.install_agent_package",
+    "doctor_module": "ops_tools.install_doctor",
+    "verify_module": "ops_tools.verify_agent_installation"
+  },
+  "config_files": {
+    "local_env_template": "python/.env.local.example",
+    "target_env_template": "python/.env.target.example"
+  }
+}

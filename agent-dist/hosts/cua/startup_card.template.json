@@ -1,0 +1,17 @@
+{
+  "schema_version": "aimipay.startup-card.v1",
+  "host": "cua",
+  "render_as": "assistant_suggestion_card",
+  "fields": {
+    "assistant_message": "summary",
+    "suggested_action_label": "primary_action.label",
+    "suggested_action_value": "primary_action.action",
+    "checklist_items": "checklist",
+    "resources": "resources"
+  },
+  "tool_shortcuts": {
+    "create_wallet": "aimipay.create_wallet",
+    "fund_wallet": "aimipay.get_startup_onboarding",
+    "ready_to_purchase": "aimipay.list_offers"
+  }
+}

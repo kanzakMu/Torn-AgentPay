@@ -1,0 +1,14 @@
+{
+  "schema_version": "aimipay.startup-card.v1",
+  "host": "claude-desktop",
+  "render_as": "banner_card",
+  "fields": {
+    "header": "title",
+    "body": "summary",
+    "primary_button_label": "primary_action.label",
+    "primary_button_action": "primary_action.action",
+    "details_checklist": "checklist",
+    "details_resources": "resources"
+  },
+  "fallback_field": "initialize.result.instructions"
+}
