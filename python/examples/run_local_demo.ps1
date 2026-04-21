@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 if (-not $env:AIMIPAY_REPOSITORY_ROOT) {
-  $env:AIMIPAY_REPOSITORY_ROOT = "e:/trade/aimicropay-tron"
+  $env:AIMIPAY_REPOSITORY_ROOT = (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
 }
 
 if (-not $env:AIMIPAY_FULL_HOST) {

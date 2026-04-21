@@ -4,7 +4,7 @@ This checklist is the final staging gate before opening Tron Nile traffic.
 
 ## 1. Freeze Testnet Inputs
 
-- copy [python/target.nile.env.example](/E:/trade/aimicropay-tron/python/target.nile.env.example) into a private env file
+- copy [`python/target.nile.env.example`](./target.nile.env.example) into a private env file
 - confirm the Nile seller address, seller private key, contract address, and token address are final
 - confirm `AIMIPAY_SETTLEMENT_BACKEND=claim_script` and `AIMIPAY_CHAIN_ID=3448148188`
 

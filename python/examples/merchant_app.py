@@ -55,7 +55,10 @@ class TogglePlanRequest(BaseModel):
 
 def create_app() -> FastAPI:
     load_default_example_env()
-    repository_root = os.environ.get("AIMIPAY_REPOSITORY_ROOT", "e:/trade/aimicropay-tron")
+    repository_root = os.environ.get(
+        "AIMIPAY_REPOSITORY_ROOT",
+        str(Path(__file__).resolve().parents[2]),
+    )
     merchant_dist_root = Path(repository_root) / "merchant-dist"
     dashboard_html = merchant_dist_root / "dashboard" / "install_dashboard.html"
     full_host = os.environ.get("AIMIPAY_FULL_HOST", "http://127.0.0.1:9090")

@@ -10,7 +10,10 @@ from ops_tools.agent_onboarding import run_agent_onboarding
 
 
 def build_server() -> AimiPayMcpServer:
-    repository_root = os.environ.get("AIMIPAY_REPOSITORY_ROOT", "e:/trade/aimicropay-tron")
+    repository_root = os.environ.get(
+        "AIMIPAY_REPOSITORY_ROOT",
+        str(Path(__file__).resolve().parents[2]),
+    )
     onboarding = run_agent_onboarding(
         repository_root=repository_root,
         env_file=Path(repository_root) / "python" / ".env.local",

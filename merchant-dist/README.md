@@ -1,6 +1,6 @@
-# AimiPay Merchant Install Kit
+# Torn-AgentPay Merchant Install Kit
 
-This directory is the merchant-facing install layer for websites, SaaS apps, and API products that want AimiPay-style programmable receipts.
+This directory is the merchant-facing install layer for websites, SaaS apps, and API products that want Torn-AgentPay-style programmable receipts.
 
 It is intentionally closer to a Stripe-style starter kit than a raw gateway code dump.
 
@@ -62,7 +62,7 @@ It helps merchants expose:
 
 - manifest and discovery endpoints
 - pricing and paid capability metadata
-- a website-friendly "Pay with AimiPay" surface
+- a website-friendly "Pay with Torn-AgentPay" surface
 - a dashboard-style install page at `/aimipay/install`
 
-It does not replace the buyer-side agent payment flow. The actual purchase still happens through the AimiPay buyer/agent lifecycle.
+It does not replace the buyer-side agent payment flow. The actual purchase still happens through the buyer/agent lifecycle.

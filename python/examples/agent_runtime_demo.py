@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 
 from buyer import BuyerWallet, MarketSelectionPolicy, install_agent_payments
 from buyer.provisioner import build_default_tron_provisioner
@@ -11,7 +12,10 @@ from .env_loader import load_default_example_env
 
 def build_runtime():
     load_default_example_env()
-    repository_root = os.environ.get("AIMIPAY_REPOSITORY_ROOT", "e:/trade/aimicropay-tron")
+    repository_root = os.environ.get(
+        "AIMIPAY_REPOSITORY_ROOT",
+        str(Path(__file__).resolve().parents[2]),
+    )
     full_host = os.environ.get("AIMIPAY_FULL_HOST")
     buyer_address = os.environ.get("AIMIPAY_BUYER_ADDRESS", "TRX_BUYER")
     buyer_private_key = os.environ.get("AIMIPAY_BUYER_PRIVATE_KEY", "buyer_private_key")

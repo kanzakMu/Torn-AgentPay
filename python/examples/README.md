@@ -33,7 +33,7 @@ python -m uvicorn python.examples.merchant_app:app --host 127.0.0.1 --port 8000
 Optional environment variables:
 
 ```bash
-set AIMIPAY_REPOSITORY_ROOT=e:/trade/aimicropay-tron
+set AIMIPAY_REPOSITORY_ROOT=<repository-root>
 set AIMIPAY_FULL_HOST=http://127.0.0.1:9090
 set AIMIPAY_SELLER_PRIVATE_KEY=seller_private_key
 set AIMIPAY_SETTLEMENT_BACKEND=claim_script
@@ -53,9 +53,9 @@ The merchant demo exposes:
 
 Merchant website/SaaS starter kit:
 
-- [merchant-dist/README.md](/E:/trade/aimicropay-tron/merchant-dist/README.md)
-- [EMBED_GUIDE.md](/E:/trade/aimicropay-tron/merchant-dist/saas/EMBED_GUIDE.md)
-- [embed.checkout.html](/E:/trade/aimicropay-tron/merchant-dist/website/embed.checkout.html)
+- [merchant-dist/README.md](../../merchant-dist/README.md)
+- [EMBED_GUIDE.md](../../merchant-dist/saas/EMBED_GUIDE.md)
+- [embed.checkout.html](../../merchant-dist/website/embed.checkout.html)
 
 ## 3. Run the agent runtime demo
 
@@ -63,7 +63,7 @@ In another terminal:
 
 ```bash
 set AIMIPAY_MERCHANT_URLS=http://127.0.0.1:8000
-set AIMIPAY_REPOSITORY_ROOT=e:/trade/aimicropay-tron
+set AIMIPAY_REPOSITORY_ROOT=<repository-root>
 python python/examples/agent_runtime_demo.py
 ```
 
@@ -88,7 +88,7 @@ This demo will:
 This example starts the merchant demo with `local_smoke`, waits for health, and runs the buyer side purchase flow:
 
 ```bash
-set AIMIPAY_REPOSITORY_ROOT=e:/trade/aimicropay-tron
+set AIMIPAY_REPOSITORY_ROOT=<repository-root>
 python python/examples/local_end_to_end_demo.py
 ```
 

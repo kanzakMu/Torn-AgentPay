@@ -1,125 +1,102 @@
-# AimiPay Agent Distribution
+# Torn-AgentPay Agent Distribution
 
-This directory contains the installable distribution metadata for using AimiPay as an agent-native package.
+This directory contains the agent-facing distribution artifacts for installing Torn-AgentPay into local AI hosts.
 
-Primary handoff page:
+It is intended for hosts that can load MCP servers, local skills, plugins, or connector metadata.
 
-- [SHOWCASE.md](/E:/trade/aimicropay-tron/SHOWCASE.md)
+## Supported Targets
 
-## Included targets
+The installer currently supports:
 
-- `skills/aimipay-agent`
-  Repo-local Codex skill for installation guidance and AimiPay payment workflows.
-- `plugins/aimipay-agent`
-  Repo-local Codex plugin that wires a local MCP server into Codex-style hosts.
-- `agent-dist/connector-package.json`
-  Connector metadata for hosts that want a simple manifest describing the available install artifacts.
+- `codex`
+- `mcp`
+- `claude`
+- `cua`
+- `openclaw`
+- `hermes`
+- `all`
 
-## Fast install paths
+## Fast Install
 
-Windows PowerShell:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target all --mode repo-local
-```
-
-Windows batch wrapper:
-
-```bat
-python\install_agent_package.bat --target all --mode repo-local
-```
-
-Home-local install for Codex-style hosts:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target all --mode home-local
-```
-
-Install a single agent target with a merchant already wired in:
+Home-local install for one host target:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target codex --mode home-local --merchant-url https://merchant.example
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target mcp --mode home-local --merchant-url https://merchant.example
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target openclaw --mode home-local --merchant-url https://merchant.example
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target hermes --mode home-local --merchant-url https://merchant.example
 ```
 
-GitHub direct install for agent hosts:
+Install every supported target:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/kanzakMu/Torn-AgentPay/main/python/install_agent_from_github.ps1 -OutFile $env:TEMP\\aimipay-agent-install.ps1; & $env:TEMP\\aimipay-agent-install.ps1 -RepoUrl https://github.com/kanzakMu/Torn-AgentPay.git -Target codex -MerchantUrl https://merchant.example"
+powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target all --mode home-local --merchant-url https://merchant.example
 ```
 
-Codex home-local auto-register plus verification:
+GitHub direct install:
+
+```powershell
+powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/kanzakMu/Torn-AgentPay/main/python/install_agent_from_github.ps1 -OutFile $env:TEMP\\torn-agentpay-agent-install.ps1; & $env:TEMP\\torn-agentpay-agent-install.ps1 -RepoUrl https://github.com/kanzakMu/Torn-AgentPay.git -Target codex -MerchantUrl https://merchant.example"
+```
+
+## What the Installer Does
+
+The installer can:
+
+- copy the local skill
+- copy the local plugin
+- install connector metadata
+- generate host-ready config files
+- bind the installed host config to the Python interpreter that performed the install
+- persist merchant URLs into the generated host config
+- run post-install verification
+- run startup onboarding
+
+## Install Modes
+
+- `repo-local`
+  Copies the skill and plugin into this repository for local development.
+- `home-local`
+  Copies the skill and plugin into the local user install directories so the host can discover them immediately.
+
+## Generated Host Configs
+
+Depending on the target, the installer generates ready-to-use host files for:
+
+- Codex package metadata
+- generic MCP hosts
+- Claude Desktop-style hosts
+- CUA-style hosts
+- OpenClaw-style hosts
+- Hermes-style hosts
+
+## Verify the Install
+
+Codex helper:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/register_codex_home_local.ps1 -RunDoctor
 ```
 
-## Install modes
-
-- `repo-local`
-  Copies the skill and plugin into this repository so local development builds can discover them immediately.
-- `home-local`
-  Copies the skill into `$CODEX_HOME/skills` (or `%USERPROFILE%\.codex\skills`) and the plugin into `%USERPROFILE%\plugins`, then creates a local marketplace entry.
-
-## Installed runtime wiring
-
-The installer patches the plugin MCP definition so it uses:
-
-- the Python interpreter that ran the installer
-- `PYTHONPATH` pointing at this repository's `python/` and `python/.vendor/`
-- `AIMIPAY_REPOSITORY_ROOT` pointing at this repository
-
-That keeps the installed plugin bound to a working runtime instead of relying on a generic `python` command being on PATH.
-
-The installer also generates host-ready configuration files under the install target so AI hosts can use them immediately instead of starting from raw templates. Generated targets now include:
-
-- Codex package metadata
-- Generic MCP config
-- Claude Desktop config
-- CUA config
-- OpenClaw config
-- Hermes config
-
-## Validation
-
-After installation, verify the agent package wiring:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File python/register_codex_home_local.ps1
-```
-
-If you also want a runtime readiness check, run:
-
-```powershell
-.venv\Scripts\python.exe -m ops_tools.install_doctor --format markdown
-```
-
-Manual verification only:
+Manual verification:
 
 ```powershell
 .venv\Scripts\python.exe -m ops_tools.verify_agent_installation --mode home-local --json
 ```
 
-## Host templates
+## Host Guides
 
-- Host checklist: [HOST_INSTALL_CHECKLIST.md](/E:/trade/aimicropay-tron/agent-dist/HOST_INSTALL_CHECKLIST.md)
-- Claude/MCP-style config: [claude_desktop_config.template.json](/E:/trade/aimicropay-tron/agent-dist/hosts/claude-desktop/claude_desktop_config.template.json)
-- CUA-style config: [cua_mcp_config.template.json](/E:/trade/aimicropay-tron/agent-dist/hosts/cua/cua_mcp_config.template.json)
-- Generic MCP host config: [generic_mcp_server.template.json](/E:/trade/aimicropay-tron/agent-dist/hosts/generic/generic_mcp_server.template.json)
-- Claude onboarding adapter: [ONBOARDING_ADAPTER.md](/E:/trade/aimicropay-tron/agent-dist/hosts/claude-desktop/ONBOARDING_ADAPTER.md)
-- CUA onboarding adapter: [ONBOARDING_ADAPTER.md](/E:/trade/aimicropay-tron/agent-dist/hosts/cua/ONBOARDING_ADAPTER.md)
-- Codex onboarding adapter: [ONBOARDING_ADAPTER.md](/E:/trade/aimicropay-tron/agent-dist/hosts/codex/ONBOARDING_ADAPTER.md)
-- Claude end-to-end example: [E2E_WALKTHROUGH.md](/E:/trade/aimicropay-tron/agent-dist/hosts/claude-desktop/E2E_WALKTHROUGH.md)
-- Claude rendered startup card demo: [demo.startup_card.html](/E:/trade/aimicropay-tron/agent-dist/hosts/claude-desktop/demo.startup_card.html)
-- Startup card assets: [theme.tokens.json](/E:/trade/aimicropay-tron/agent-dist/assets/startup-card/theme.tokens.json)
-- Startup card copy guide: [copy-guidelines.md](/E:/trade/aimicropay-tron/agent-dist/assets/startup-card/copy-guidelines.md)
+- [Host Install Checklist](./HOST_INSTALL_CHECKLIST.md)
+- [Claude Desktop Adapter](./hosts/claude-desktop/ONBOARDING_ADAPTER.md)
+- [CUA Adapter](./hosts/cua/ONBOARDING_ADAPTER.md)
+- [Codex Adapter](./hosts/codex/ONBOARDING_ADAPTER.md)
+- [Claude Desktop E2E Walkthrough](./hosts/claude-desktop/E2E_WALKTHROUGH.md)
 
-## Demo Rendering
+## Distribution Artifacts
 
-Render the Claude-style startup card demo again at any time:
+- agent core manifest: [`agent-dist/aimipay-agent-core.json`](./aimipay-agent-core.json)
+- connector package: [`agent-dist/connector-package.json`](./connector-package.json)
+- plugin manifest: [`plugins/aimipay-agent/.codex-plugin/plugin.json`](../plugins/aimipay-agent/.codex-plugin/plugin.json)
+- repo skill: [`skills/aimipay-agent/SKILL.md`](../skills/aimipay-agent/SKILL.md)
 
-```powershell
-.venv\Scripts\python.exe python/examples/render_claude_startup_card_demo.py --repository-root E:/trade/aimicropay-tron --output-file agent-dist/hosts/claude-desktop/demo.startup_card.html
-```
+## Notes
+
+- The protocol namespace still uses `aimipay` for compatibility with the existing MCP and HTTP surface.
+- The repository name is `Torn-AgentPay`, but many tool names and endpoint prefixes remain `aimipay`.

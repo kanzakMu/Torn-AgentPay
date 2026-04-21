@@ -13,11 +13,11 @@ After Claude Desktop connects to `aimipay-agent`, the first screen should show:
 ## Files
 
 - MCP config template:
-  [claude_desktop_config.template.json](/E:/trade/aimicropay-tron/agent-dist/hosts/claude-desktop/claude_desktop_config.template.json)
+  [claude_desktop_config.template.json](./claude_desktop_config.template.json)
 - Startup card template:
-  [startup_card.template.json](/E:/trade/aimicropay-tron/agent-dist/hosts/claude-desktop/startup_card.template.json)
+  [startup_card.template.json](./startup_card.template.json)
 - Example config:
-  [claude_desktop.local.example.json](/E:/trade/aimicropay-tron/agent-dist/hosts/claude-desktop/claude_desktop.local.example.json)
+  [claude_desktop.local.example.json](./claude_desktop.local.example.json)
 
 ## End-to-End Flow
 

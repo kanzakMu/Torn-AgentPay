@@ -1,6 +1,6 @@
 # Agent Integration Guide
 
-This guide describes the recommended lifecycle for integrating an AI agent with AimiPay Tron.
+This guide describes the recommended lifecycle for integrating an AI agent with Torn-AgentPay.
 
 ## Goal
 
@@ -77,8 +77,8 @@ client = BuyerClient(
     merchant_base_url="https://merchant.example",
     full_host="https://nile.trongrid.io",
     wallet=BuyerWallet(address="...", private_key="..."),
-    provisioner=build_default_tron_provisioner(repository_root="e:/trade/aimicropay-tron"),
-    repository_root="e:/trade/aimicropay-tron",
+    provisioner=build_default_tron_provisioner(repository_root="<repository-root>"),
+    repository_root="<repository-root>",
 )
 
 offers = client.discover_offers()

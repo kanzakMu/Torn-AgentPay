@@ -15,7 +15,10 @@ def build_gateway_config_from_env(*, env_file: str | Path | None = None) -> Gate
     load_default_example_env()
     if env_file is not None:
         load_env_file(env_file, override=True)
-    repository_root = os.environ.get("AIMIPAY_REPOSITORY_ROOT", "e:/trade/aimicropay-tron")
+    repository_root = os.environ.get(
+        "AIMIPAY_REPOSITORY_ROOT",
+        str(Path(__file__).resolve().parents[2]),
+    )
     full_host = os.environ.get("AIMIPAY_FULL_HOST", "http://127.0.0.1:9090")
     seller_private_key = os.environ.get("AIMIPAY_SELLER_PRIVATE_KEY", "")
     seller_address = os.environ.get("AIMIPAY_SELLER_ADDRESS", "TRX_SELLER")

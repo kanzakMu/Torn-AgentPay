@@ -1,6 +1,6 @@
-# AimiPay Host Installation Checklist
+# Torn-AgentPay Host Installation Checklist
 
-Use this checklist when you want to wire AimiPay into a host that speaks MCP or can launch a local tool server.
+Use this checklist when you want to wire Torn-AgentPay into a host that speaks MCP or can launch a local tool server.
 
 ## 1. Prepare the local runtime
 
