@@ -45,7 +45,7 @@ The installer can:
 - install connector metadata
 - generate host-ready config files
 - bind the installed host config to the Python interpreter that performed the install
-- persist merchant URLs into the generated host config
+- persist seller service URLs into the generated host config
 - run post-install verification
 - run startup onboarding
 
@@ -99,4 +99,4 @@ Manual verification:
 ## Notes
 
 - The protocol namespace still uses `aimipay` for compatibility with the existing MCP and HTTP surface.
-- The repository name is `Torn-AgentPay`, but many tool names and endpoint prefixes remain `aimipay`.
+- The repository name is `Torn-AgentPay`, but many tool names, endpoint prefixes, and install flags still use `aimipay` or `merchant` for compatibility.

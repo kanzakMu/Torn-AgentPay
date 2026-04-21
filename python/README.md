@@ -24,9 +24,9 @@ That brings up:
 
 - buyer onboarding: `http://127.0.0.1:8011/aimipay/buyer/onboarding`
 
-### Start as a merchant
+### Start as a seller
 
-Use this if you only want the seller or merchant side.
+Use this if you only want the seller side.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1
@@ -71,13 +71,13 @@ Default local install:
 powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1
 ```
 
-Merchant-driven install:
+Seller-driven install:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1 -MerchantUrl https://merchant.example
 ```
 
-In merchant-driven mode, the buyer runtime prefers the merchant's manifest and discovery data for:
+In seller-driven mode, the buyer runtime prefers the seller's manifest and discovery data for:
 
 - contract address
 - token address
@@ -92,14 +92,14 @@ powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1 -NetworkProf
 powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1 -NetworkProfile nile
 ```
 
-## Merchant Install
+## Seller Install
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1
 powershell -ExecutionPolicy Bypass -File python/run_merchant_stack.ps1
 ```
 
-Merchant bootstrap also supports network profiles:
+Seller bootstrap also supports network profiles:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1 -NetworkProfile local
@@ -128,7 +128,7 @@ Install doctor:
 .venv\Scripts\python.exe -m ops_tools.install_doctor
 ```
 
-Merchant doctor:
+Seller doctor:
 
 ```powershell
 .venv\Scripts\python.exe -m ops_tools.merchant_doctor
@@ -202,7 +202,7 @@ python python/examples/offchain_stress_drill.py
 Use these templates rather than committing live files:
 
 - local buyer template: [`python/.env.local.example`](./.env.local.example)
-- local merchant template: [`python/.env.merchant.example`](./.env.merchant.example)
+- local seller template: [`python/.env.merchant.example`](./.env.merchant.example)
 - generic target template: [`python/.env.target.example`](./.env.target.example)
 - Nile testnet template: [`python/target.nile.env.example`](./target.nile.env.example)
 

@@ -1,8 +1,8 @@
 # Torn-AgentPay
 
-Agent-native payment infrastructure for AI agents and merchants on Tron.
+Agent-native payment infrastructure for AI agents and sellers on Tron.
 
-Torn-AgentPay lets an AI agent discover paid capabilities, open payment channels, submit payments, and drive settlement across onchain and offchain flows. It also gives merchants a local runtime, install flow, and lightweight control plane for publishing services to agents.
+Torn-AgentPay lets an AI agent discover paid capabilities, open payment channels, submit payments, and drive settlement across onchain and offchain flows. It also gives sellers a local runtime, onboarding flow, and lightweight control plane for publishing services to agents.
 
 ## What This Project Is
 
@@ -10,7 +10,7 @@ This repository combines four pieces that usually live separately:
 
 - a Tron payment-channel contract
 - a Python buyer runtime for AI agents
-- a Python merchant runtime for sellers
+- a Python seller runtime
 - install and distribution tooling for MCP, Codex-style hosts, and other agent runtimes
 
 The goal is simple:
@@ -24,9 +24,9 @@ The current repository is already past the prototype stage. Today it includes:
 - Tron payment-channel contracts and execution scripts
 - local Hardhat tests and smoke flows
 - buyer lifecycle: discover, estimate, create payment, execute, reconcile, finalize
-- merchant lifecycle: publish routes, expose manifest/discovery, execute settlement, reconcile status
+- seller lifecycle: publish routes, expose manifest/discovery, execute settlement, reconcile status
 - agent installation paths for MCP, Codex-style hosts, OpenClaw, and Hermes-style connectors
-- buyer onboarding with wallet setup, funding guidance, merchant URL binding, and offer discovery
+- buyer onboarding with wallet setup, funding guidance, seller URL binding, and offer discovery
 - seller console with route/plan editing, pause/resume, history, diff, and rollback
 - Nile testnet deployment and end-to-end validation
 
@@ -35,7 +35,7 @@ The current repository is already past the prototype stage. Today it includes:
 This repository is most useful if you are:
 
 - building an AI agent that needs to buy external services
-- building a merchant runtime that wants to sell agent-callable capabilities
+- building a seller runtime that wants to sell agent-callable capabilities
 - experimenting with agent commerce, micropayments, or capability marketplaces
 - integrating MCP or similar host environments with payment-aware tools
 
@@ -72,7 +72,7 @@ Then open:
 
 - the buyer onboarding UI at `http://127.0.0.1:8011/aimipay/buyer/onboarding`
 
-### Option C: Start as a merchant
+### Option C: Start as a seller
 
 Use this if you only want the seller or service-operator side first.
 
@@ -108,7 +108,7 @@ powershell -ExecutionPolicy Bypass -File python/run_local_demo.ps1
 
 ### Option E: Use the role-based local setup hub
 
-Use this if you want one local page that separates Buyer, Merchant, and Demo paths:
+Use this if you want one local page that separates Buyer, Seller, and Demo paths:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/start_easy_setup.ps1
@@ -156,7 +156,7 @@ Notes:
 
 - the `raw.githubusercontent.com` bootstrap path works only when the repository is public
 - the installer itself clones from the `RepoUrl` you pass in
-- replace `https://merchant.example` with a real merchant URL if you want onboarding to bind a merchant immediately
+- replace `https://merchant.example` with a real seller service URL if you want onboarding to bind it immediately
 
 ## Main Flows
 
@@ -165,25 +165,25 @@ Notes:
 - choose the buyer path
 - install agent package or buyer runtime
 - create or load buyer wallet
-- connect a merchant URL
+- connect a seller URL
 - discover offers
 - open a payment channel
 - create and execute a payment
 - reconcile until terminal status
 
-### Merchant / Seller
+### Seller
 
-- choose the merchant path
-- install merchant runtime
+- choose the seller path
+- install seller runtime
 - configure service metadata, routes, and plans
 - expose manifest and discovery endpoints
 - accept payment intents
 - execute settlement and reconcile confirmations
 - manage configuration through the seller console
 
-## Merchant Runtime
+## Seller Runtime
 
-The merchant side includes:
+The seller side includes:
 
 - local bootstrap and doctor scripts
 - website/SaaS embed starter assets
@@ -228,7 +228,7 @@ The Nile testnet path has already been exercised end-to-end:
 - payment-channel contract deployed
 - buyer and seller wallets prepared
 - onchain open + claim validated
-- Python merchant runtime lifecycle validated against Nile
+- Python seller runtime lifecycle validated against Nile
 
 Operational references:
 
@@ -243,7 +243,7 @@ contracts/      Payment-channel contracts
 scripts/        Deploy/open/claim/close/cancel helpers
 test/           Hardhat tests and smoke coverage
 python/         Buyer, seller, shared runtime, install tooling, tests
-merchant-dist/  Merchant install/dashboard/embed assets
+merchant-dist/  Seller onboarding console and embed assets
 agent-dist/     Agent package manifests, host templates, onboarding assets
 spec/           Protocol and integration documentation
 ```
@@ -257,7 +257,7 @@ If you're new to the project, this is the fastest way in:
 3. Read the [Agent Integration Guide](spec/AGENT_INTEGRATION_GUIDE.md)
 4. Read the [Python Runtime Guide](python/README.md)
 5. Read the [Agent Distribution Guide](agent-dist/README.md)
-6. Read the [Merchant Install Guide](merchant-dist/README.md)
+6. Read the [Seller Install Guide](merchant-dist/README.md)
 
 ## Security Notes
 
@@ -271,7 +271,7 @@ Torn-AgentPay is not just a contract repository and not just an MCP wrapper. It 
 
 - programmable payments on Tron
 - offchain lifecycle management
-- merchant tooling
+- seller tooling
 - AI host installation and onboarding
 
 If your goal is to let AI agents install a package and immediately start paying for capabilities, this repository is the core of that workflow.

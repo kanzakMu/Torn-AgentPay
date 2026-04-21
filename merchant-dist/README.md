@@ -7,21 +7,21 @@ It is intentionally closer to a Stripe-style starter kit than a raw gateway code
 ## What Is Included
 
 - `website/aimipay.checkout.js`
-  A lightweight starter script merchants can embed on a marketing site or dashboard page.
+  A lightweight starter script sellers can embed on a marketing site or dashboard page.
 - `website/embed.checkout.html`
   A drop-in HTML example showing the script in use.
 - `saas/EMBED_GUIDE.md`
   A SaaS-oriented integration guide for apps that want a managed install surface.
 
-## Merchant Bootstrap
+## Seller Bootstrap
 
-Use the merchant-side bootstrap flow first:
+Use the seller-side bootstrap flow first:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1
 ```
 
-Then start the local merchant runtime:
+Then start the local seller runtime:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/run_merchant_stack.ps1
@@ -30,14 +30,14 @@ powershell -ExecutionPolicy Bypass -File python/run_merchant_stack.ps1
 Once the runtime is up, open the seller console:
 
 - `http://127.0.0.1:8000/aimipay/install`
-- check the "Resolved network profile" section to verify the runtime-selected network, chain RPC, contract, token, and settlement backend before exposing the merchant publicly
+- check the "Resolved network profile" section to verify the runtime-selected network, chain RPC, contract, token, and settlement backend before exposing the seller publicly
 
-The merchant bootstrap creates:
+The seller bootstrap creates:
 
 - `python/.env.merchant.local`
 - `merchant-dist/website/.generated/merchant.public.json`
 
-## Merchant Doctor
+## Seller Doctor
 
 Validate the seller setup before exposing it to a site or SaaS shell:
 
@@ -49,16 +49,16 @@ Validate the seller setup before exposing it to a site or SaaS shell:
 
 The quickest website path is:
 
-1. start the merchant runtime
+1. start the seller runtime
 2. copy `website/aimipay.checkout.js`
 3. copy the markup from `website/embed.checkout.html`
-4. point `data-merchant-base-url` at your public merchant base URL
+4. point `data-merchant-base-url` at your public seller base URL
 
 ## Important Scope Note
 
 This starter kit is the seller install and presentation layer.
 
-It helps merchants expose:
+It helps sellers expose:
 
 - manifest and discovery endpoints
 - pricing and paid capability metadata
