@@ -163,6 +163,35 @@ def sign_digest(private_key: str, digest: str) -> str:
     return f"0x{r.to_bytes(32, 'big').hex()}{s.to_bytes(32, 'big').hex()}{v:02x}"
 
 
+def private_key_to_tron_address(private_key: str) -> str:
+    private_value = int(private_key[2:] if private_key.startswith("0x") else private_key, 16)
+    signer = ec.derive_private_key(private_value, ec.SECP256K1())
+    public_numbers = signer.public_key().public_numbers()
+    return _public_key_to_tron_address((public_numbers.x, public_numbers.y))
+
+
+def recover_signer_address(*, digest: str, signature: str) -> str:
+    signature_hex = signature[2:] if signature.startswith("0x") else signature
+    if len(signature_hex) != 130:
+        raise ValueError("signature must be 65 bytes long")
+    r = int(signature_hex[:64], 16)
+    s = int(signature_hex[64:128], 16)
+    v = int(signature_hex[128:130], 16)
+    recovery_id = v - 27 if v >= 27 else v
+    if recovery_id not in {0, 1, 2, 3}:
+        raise ValueError("invalid recovery id")
+    digest_int = int.from_bytes(_bytes32(digest), "big")
+    public_key = _recover_public_key(recovery_id=recovery_id, r=r, s=s, digest_int=digest_int)
+    if public_key is None:
+        raise ValueError("could not recover signer public key")
+    return _public_key_to_tron_address(public_key)
+
+
+def verify_digest_signature(*, digest: str, signature: str, signer_address: str) -> bool:
+    recovered = recover_signer_address(digest=digest, signature=signature)
+    return normalize_tron_address(recovered) == normalize_tron_address(signer_address)
+
+
 def build_payment_voucher(
     *,
     buyer_private_key: str,
@@ -317,6 +346,15 @@ def _recover_public_key(*, recovery_id: int, r: int, s: int, digest_int: int) ->
     sr = _scalar_mult((s * r_inv) % _SECP256K1_N, point_r)
     eg = _scalar_mult((-e * r_inv) % _SECP256K1_N, _SECP256K1_G)
     return _point_add(sr, eg)
+
+
+def _public_key_to_tron_address(public_key: tuple[int, int]) -> str:
+    x, y = public_key
+    encoded = b"\x04" + x.to_bytes(32, "big") + y.to_bytes(32, "big")
+    hashed = keccak256(encoded[1:])
+    payload = b"\x41" + hashed[-20:]
+    checksum = hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4]
+    return base58.b58encode(payload + checksum).decode("ascii")
 
 
 def _point_add(

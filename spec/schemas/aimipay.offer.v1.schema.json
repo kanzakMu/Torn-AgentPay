@@ -1,0 +1,269 @@
+{
+  "$defs": {
+    "CapabilityBudgetHint": {
+      "properties": {
+        "min_units": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Units"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "suggested_prepaid_atomic": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggested Prepaid Atomic"
+        },
+        "typical_units": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Typical Units"
+        }
+      },
+      "title": "CapabilityBudgetHint",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "amount_atomic": {
+      "minimum": 0,
+      "title": "Amount Atomic",
+      "type": "integer"
+    },
+    "auth_requirements": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Auth Requirements",
+      "type": "array"
+    },
+    "budget_hint": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CapabilityBudgetHint"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "capability_id": {
+      "title": "Capability Id",
+      "type": "string"
+    },
+    "capability_tags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Capability Tags",
+      "type": "array"
+    },
+    "capability_type": {
+      "title": "Capability Type",
+      "type": "string"
+    },
+    "chain": {
+      "title": "Chain",
+      "type": "string"
+    },
+    "chain_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Chain Id"
+    },
+    "contract_address": {
+      "title": "Contract Address",
+      "type": "string"
+    },
+    "delivery_mode": {
+      "title": "Delivery Mode",
+      "type": "string"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "expected_latency_ms": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expected Latency Ms"
+    },
+    "method": {
+      "title": "Method",
+      "type": "string"
+    },
+    "minimum_prepaid_atomic": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Minimum Prepaid Atomic"
+    },
+    "pricing_model": {
+      "title": "Pricing Model",
+      "type": "string"
+    },
+    "requires_human_approval": {
+      "default": false,
+      "title": "Requires Human Approval",
+      "type": "boolean"
+    },
+    "response_format": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Response Format"
+    },
+    "route_path": {
+      "title": "Route Path",
+      "type": "string"
+    },
+    "safe_retry_policy": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Safe Retry Policy"
+    },
+    "seller_address": {
+      "title": "Seller Address",
+      "type": "string"
+    },
+    "settlement_backend": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Settlement Backend"
+    },
+    "suggested_prepaid_atomic": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Suggested Prepaid Atomic"
+    },
+    "supports_auto_purchase": {
+      "default": true,
+      "title": "Supports Auto Purchase",
+      "type": "boolean"
+    },
+    "token_address": {
+      "title": "Token Address",
+      "type": "string"
+    },
+    "unit_price_atomic": {
+      "minimum": 0,
+      "title": "Unit Price Atomic",
+      "type": "integer"
+    },
+    "usage_unit": {
+      "title": "Usage Unit",
+      "type": "string"
+    }
+  },
+  "required": [
+    "capability_id",
+    "capability_type",
+    "route_path",
+    "method",
+    "pricing_model",
+    "usage_unit",
+    "amount_atomic",
+    "unit_price_atomic",
+    "delivery_mode",
+    "chain",
+    "seller_address",
+    "contract_address",
+    "token_address"
+  ],
+  "title": "CapabilityOffer",
+  "type": "object"
+}

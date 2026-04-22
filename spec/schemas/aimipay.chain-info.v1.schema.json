@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "asset_address": {
+      "title": "Asset Address",
+      "type": "string"
+    },
+    "asset_decimals": {
+      "default": 6,
+      "title": "Asset Decimals",
+      "type": "integer"
+    },
+    "asset_symbol": {
+      "default": "USDT",
+      "title": "Asset Symbol",
+      "type": "string"
+    },
+    "chain": {
+      "default": "tron",
+      "title": "Chain",
+      "type": "string"
+    },
+    "chain_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Chain Id"
+    },
+    "channel_scheme": {
+      "default": "tron-contract",
+      "title": "Channel Scheme",
+      "type": "string"
+    },
+    "contract_address": {
+      "title": "Contract Address",
+      "type": "string"
+    },
+    "network": {
+      "default": "nile",
+      "title": "Network",
+      "type": "string"
+    },
+    "seller_address": {
+      "title": "Seller Address",
+      "type": "string"
+    },
+    "settlement_backend": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Settlement Backend"
+    }
+  },
+  "required": [
+    "seller_address",
+    "contract_address",
+    "asset_address"
+  ],
+  "title": "ChainInfo",
+  "type": "object"
+}

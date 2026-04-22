@@ -37,6 +37,13 @@ That brings up:
 
 - seller console: `http://127.0.0.1:8000/aimipay/install`
 
+Seller-first runtime wrappers are also available:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File python/bootstrap_seller_node.ps1
+powershell -ExecutionPolicy Bypass -File python/run_seller_node.ps1
+```
+
 ### Run the full local demo
 
 Use this if you want both sides locally and then want to submit a one-shot demo payment.
@@ -104,6 +111,60 @@ Seller bootstrap also supports network profiles:
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1 -NetworkProfile local
 powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1 -NetworkProfile nile
+```
+
+## Seller Node Packaging
+
+Create a distributable seller node directory:
+
+```powershell
+.venv\Scripts\python.exe -m ops_tools.package_seller_node --output-dir .\dist\seller-node --json
+```
+
+## Protocol Schemas And Conformance
+
+Export the published protocol schema bundle:
+
+```powershell
+.venv\Scripts\python.exe -m ops_tools.export_protocol_schemas
+```
+
+Package a distributable protocol bundle:
+
+```powershell
+.venv\Scripts\python.exe -m ops_tools.package_protocol_bundle --output-dir .\dist\protocol-bundle
+```
+
+Run a live conformance check:
+
+```powershell
+.venv\Scripts\python.exe -m ops_tools.conformance_check --seller-url http://127.0.0.1:8000
+```
+
+Run a file-based conformance check:
+
+```powershell
+.venv\Scripts\python.exe -m ops_tools.conformance_check --manifest-file .\manifest.json --discover-file .\discover.json --attestation-file .\attestation.json --purchase-file .\purchase.json
+```
+
+Export offline conformance fixtures:
+
+```powershell
+.venv\Scripts\python.exe -m ops_tools.export_conformance_fixtures --output-dir .\fixtures
+```
+
+Buyer implementer reference:
+
+- [Buyer Implementer Guide](../spec/BUYER_IMPLEMENTER_GUIDE.md)
+- [Host Implementer Guide](../spec/HOST_IMPLEMENTER_GUIDE.md)
+- runnable example: `python/examples/minimal_buyer_reference.py`
+- reference buyer package: `python -m ops_tools.package_reference_buyer --output-dir .\\dist\\reference-buyer`
+- [Release Publishing Guide](../spec/RELEASE_PUBLISHING_GUIDE.md)
+
+Build all third-party release artifacts:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File python/build_release_artifacts.ps1
 ```
 
 ## GitHub Direct Install

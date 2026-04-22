@@ -1,3 +1,4 @@
+from .attestation import build_seller_profile, canonical_json_bytes, payload_digest, sign_payload, verify_signed_payload
 from .discovery import build_endpoints, build_manifest
 from .errors import AimiPayError, aimipay_error, coerce_error, error_payload
 from .models import (
@@ -9,6 +10,8 @@ from .models import (
     MerchantManifest,
     MerchantPlan,
     MerchantRoute,
+    SellerProfile,
+    SignatureEnvelope,
     OpenChannelRequest,
     OpenChannelResponse,
     OperatorPaymentActionRequest,
@@ -46,10 +49,12 @@ __all__ = [
     "TaskBudget",
     "build_endpoints",
     "build_manifest",
+    "build_seller_profile",
     "build_payment_lifecycle",
     "build_payment_voucher",
     "build_protocol_reference",
     "build_request_digest",
+    "canonical_json_bytes",
     "channel_id_of",
     "coerce_error",
     "error_payload",
@@ -58,7 +63,12 @@ __all__ = [
     "MANAGED_NETWORK_KEYS",
     "get_network_profile",
     "load_network_profiles",
+    "payload_digest",
     "resolve_full_host_for_network",
     "normalize_tron_address",
+    "SellerProfile",
+    "SignatureEnvelope",
+    "sign_payload",
+    "verify_signed_payload",
     "voucher_digest",
 ]

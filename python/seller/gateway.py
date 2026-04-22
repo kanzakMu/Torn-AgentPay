@@ -118,6 +118,7 @@ class GatewayRuntime:
             plans=self.config.plans,
             management_prefix=self.config.management_prefix,
             base_url=base_url,
+            seller_private_key=None if self.config.settlement is None else self.config.settlement.seller_private_key,
         )
 
     def discover(self, *, base_url: str | None = None) -> dict:

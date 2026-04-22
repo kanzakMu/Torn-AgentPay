@@ -66,3 +66,16 @@ It helps sellers expose:
 - a dashboard-style seller console at `/aimipay/install`
 
 It does not replace the buyer-side agent payment flow. The actual purchase still happens through the buyer/agent lifecycle.
+
+## Self-Hosted Seller Node Package
+
+If you want a more explicit node package instead of just running the repository directly, use the assets in:
+
+- `seller-dist/node/README.md`
+- `seller-dist/node/seller-node.manifest.json`
+
+You can also materialize a standalone package directory with:
+
+```powershell
+.venv\Scripts\python.exe -m ops_tools.package_seller_node --output-dir .\dist\seller-node --json
+```

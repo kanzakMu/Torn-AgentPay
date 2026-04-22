@@ -1,0 +1,10 @@
+{
+  "bundle": "torn-agentpay.reference-buyer.v1",
+  "schema_version": "torn-agentpay.reference-buyer-package.v1",
+  "kind": "reference-buyer",
+  "entrypoint": "minimal-buyer-reference.py",
+  "notes": [
+    "Minimal runnable buyer flow for third-party implementers",
+    "Demonstrates discover -> prepare_purchase -> submit_purchase -> confirm_purchase"
+  ]
+}

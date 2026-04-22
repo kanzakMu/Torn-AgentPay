@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -64,13 +64,40 @@ class MerchantPlan(BaseModel):
     features: list[str] = Field(default_factory=list)
 
 
+class SignatureEnvelope(BaseModel):
+    schema_version: str = "aimipay.signature-envelope.v1"
+    algorithm: str = "secp256k1-keccak256-recoverable"
+    payload_kind: str
+    signer_address: str
+    digest: str
+    signed_at: int = Field(ge=0)
+    signature: str
+
+
+class SellerProfile(BaseModel):
+    schema_version: str = "aimipay.seller-profile.v1"
+    seller_address: str
+    display_name: str
+    service_name: str
+    service_description: str
+    service_url: str | None = None
+    network: str
+    chain_id: int | None = None
+    proof_methods: list[str] = Field(default_factory=lambda: ["wallet_signature"])
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class MerchantManifest(BaseModel):
+    schema_version: str = "aimipay.manifest.v1"
     version: str = "v1"
     kind: str = "aimipay-merchant"
     transport: str = "http+aimipay"
     service_name: str
     service_description: str
     primary_chain: ChainInfo
+    seller_profile: SellerProfile | None = None
+    seller_profile_signature: SignatureEnvelope | None = None
+    manifest_signature: SignatureEnvelope | None = None
     routes: list[MerchantRoute] = Field(default_factory=list)
     plans: list[MerchantPlan] = Field(default_factory=list)
     endpoints: dict[str, str]

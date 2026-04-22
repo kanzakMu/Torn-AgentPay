@@ -289,6 +289,86 @@ def test_buyer_client_prefers_discover_chain_addresses_over_manifest() -> None:
     assert offer["token_address"] == "TRX_USDT_DISCOVER"
 
 
+def test_buyer_client_verifies_signed_manifest() -> None:
+    seller_private_key = "0x59c6995e998f97a5a0044966f0945382d7f4a3f1f3f7e61a821a3d1d021b6d2d"
+    seller_address = "TVaEiLLej394ZxVmHZXYg3HprssbpdcsmW"
+    app = FastAPI()
+    gateway_runtime = install_gateway(
+        app,
+        GatewayConfig(
+            service_name="Research Copilot",
+            service_description="Pay-per-use research and market data",
+            seller_address=seller_address,
+            contract_address="0x1000000000000000000000000000000000000001",
+            token_address="0x2000000000000000000000000000000000000002",
+            routes=[MerchantRoute(path="/tools/research", price_atomic=250_000)],
+            settlement=GatewaySettlementConfig(
+                repository_root="e:/trade/aimicropay-tron",
+                full_host="http://tron.local",
+                seller_private_key=seller_private_key,
+                chain_id=31337,
+                executor_backend="claim_script",
+            ),
+        ),
+    )
+    http_client = TestClient(app, base_url="http://merchant.test")
+    client = BuyerClient(
+        merchant_base_url="http://merchant.test",
+        full_host="http://tron.local",
+        wallet=BuyerWallet(address="TRX_BUYER", private_key="buyer_pk"),
+        provisioner=type("NoopProvisioner", (), {"provision": lambda self, plan: None})(),
+        http_client=http_client,
+    )
+
+    manifest = client.fetch_manifest()
+
+    assert manifest["_attestation"]["seller_profile_signed"] is True
+    assert manifest["_attestation"]["seller_profile_verified"] is True
+    assert manifest["_attestation"]["manifest_signed"] is True
+    assert manifest["_attestation"]["manifest_verified"] is True
+
+
+def test_buyer_client_flags_tampered_signed_manifest() -> None:
+    seller_private_key = "0x59c6995e998f97a5a0044966f0945382d7f4a3f1f3f7e61a821a3d1d021b6d2d"
+    seller_address = "TVaEiLLej394ZxVmHZXYg3HprssbpdcsmW"
+    app = FastAPI()
+    gateway_runtime = install_gateway(
+        app,
+        GatewayConfig(
+            service_name="Research Copilot",
+            service_description="Pay-per-use research and market data",
+            seller_address=seller_address,
+            contract_address="0x1000000000000000000000000000000000000001",
+            token_address="0x2000000000000000000000000000000000000002",
+            routes=[MerchantRoute(path="/tools/research", price_atomic=250_000)],
+            settlement=GatewaySettlementConfig(
+                repository_root="e:/trade/aimicropay-tron",
+                full_host="http://tron.local",
+                seller_private_key=seller_private_key,
+                chain_id=31337,
+                executor_backend="claim_script",
+            ),
+        ),
+    )
+
+    http_client = TestClient(app, base_url="http://merchant.test")
+    client = BuyerClient(
+        merchant_base_url="http://merchant.test",
+        full_host="http://tron.local",
+        wallet=BuyerWallet(address="TRX_BUYER", private_key="buyer_pk"),
+        provisioner=type("NoopProvisioner", (), {"provision": lambda self, plan: None})(),
+        http_client=http_client,
+    )
+
+    manifest = gateway_runtime.manifest(base_url="http://merchant.test")
+    manifest["service_description"] = "tampered"
+    attestation = client.verify_manifest_attestation(manifest)
+
+    assert attestation["manifest_signed"] is True
+    assert attestation["manifest_verified"] is False
+    assert "manifest_signature_invalid" in attestation["errors"]
+
+
 def test_buyer_client_uses_discover_chain_id_when_manifest_omits_it(monkeypatch) -> None:
     app = _build_gateway_app(
         settlement=GatewaySettlementConfig(
@@ -584,6 +664,85 @@ def test_buyer_client_can_finalize_payment_to_terminal_state() -> None:
 
     assert finalized["status"] == "settled"
     assert finalized["confirmation_status"] == "confirmed"
+
+
+def test_buyer_client_supports_prepare_submit_confirm_purchase_flow() -> None:
+    class FakeSettlementService:
+        runtime = None
+
+        def execute_payment(self, payment_id: str):
+            record = self.runtime.payment_store.get(payment_id)
+            updated = record.model_copy(
+                update={
+                    "status": "submitted",
+                    "tx_id": "trx_claim_prepare_submit_confirm_1",
+                }
+            )
+            self.runtime.payment_store.upsert(updated)
+            return updated
+
+        def execute_pending(self):
+            raise AssertionError("not used")
+
+        def reconcile_payment(self, payment_id: str):
+            record = self.runtime.payment_store.get(payment_id)
+            updated = record.model_copy(
+                update={
+                    "status": "settled",
+                    "confirmation_status": "confirmed",
+                    "confirmation_attempts": int(record.confirmation_attempts) + 1,
+                    "settled_at": 1_700_000_001,
+                    "confirmed_at": 1_700_000_001,
+                }
+            )
+            self.runtime.payment_store.upsert(updated)
+            return updated
+
+    settlement_service = FakeSettlementService()
+    app = _build_gateway_app(settlement_service=settlement_service)
+    settlement_service.runtime = app.state.aimipay_gateway
+    http_client = TestClient(app, base_url="http://merchant.test")
+
+    class FakeProvisioner:
+        def provision(self, plan):
+            return OpenChannelExecution(
+                approve_tx_id="approve_1",
+                open_tx_id="open_1",
+                buyer_address="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+                seller_address=plan.seller_address,
+                token_address=plan.token_address,
+                channel_id=channel_id_of(
+                    buyer_address="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+                    seller_address=plan.seller_address,
+                    token_address=plan.token_address,
+                ),
+                contract_address=plan.contract_address,
+                deposit_atomic=plan.deposit_atomic,
+                expires_at=plan.expires_at,
+            )
+
+    client = BuyerClient(
+        merchant_base_url="http://merchant.test",
+        full_host="http://tron.local",
+        wallet=BuyerWallet(
+            address="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+            private_key="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+        ),
+        provisioner=FakeProvisioner(),
+        http_client=http_client,
+    )
+
+    prepared = client.prepare_purchase(capability_id="research-web-search")
+    submitted = client.submit_purchase(
+        prepared_purchase=prepared,
+        request_body='{"topic":"tron"}',
+        auto_execute=False,
+    )
+    confirmed = client.confirm_purchase(submitted["payment"]["payment_id"])
+
+    assert prepared["offer"]["capability_id"] == "research-web-search"
+    assert submitted["payment"]["status"] == "authorized"
+    assert confirmed["status"] == "settled"
 
 
 def test_agent_adapter_returns_agent_friendly_lifecycle_shape() -> None:

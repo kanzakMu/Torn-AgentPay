@@ -72,6 +72,9 @@ def test_mcp_server_lists_tools() -> None:
     assert response["id"] == "1"
     tools = response["result"]["tools"]
     assert any(tool["name"] == "aimipay.list_offers" for tool in tools)
+    assert any(tool["name"] == "aimipay.prepare_purchase" for tool in tools)
+    assert any(tool["name"] == "aimipay.submit_purchase" for tool in tools)
+    assert any(tool["name"] == "aimipay.confirm_purchase" for tool in tools)
     assert any(tool["name"] == "aimipay.recover_payment" for tool in tools)
     assert any(tool["name"] == "aimipay.reconcile_payment" for tool in tools)
     assert any(tool["name"] == "aimipay.finalize_payment" for tool in tools)

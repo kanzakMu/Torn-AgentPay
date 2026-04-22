@@ -81,6 +81,53 @@ class AimiPayMcpServer:
                 },
             ),
             _tool(
+                "aimipay.prepare_purchase",
+                "Select an offer and open the payment channel for a higher-level purchase workflow.",
+                {
+                    "type": "object",
+                    "properties": {
+                        "merchant_base_url": {"type": "string"},
+                        "capability_type": {"type": "string"},
+                        "capability_id": {"type": "string"},
+                        "expected_units": {"type": "integer"},
+                        "budget_limit_atomic": {"type": "integer"},
+                        "deposit_atomic": {"type": "integer"},
+                        "ttl_s": {"type": "integer"},
+                        "allow_needs_approval": {"type": "boolean"},
+                    },
+                },
+            ),
+            _tool(
+                "aimipay.submit_purchase",
+                "Create and optionally execute a payment from a prepared purchase object.",
+                {
+                    "type": "object",
+                    "properties": {
+                        "merchant_base_url": {"type": "string"},
+                        "prepared_purchase": {"type": "object"},
+                        "request_body": {"type": "string"},
+                        "voucher_nonce": {"type": "integer"},
+                        "request_deadline": {"type": "integer"},
+                        "auto_execute": {"type": "boolean"},
+                    },
+                    "required": ["prepared_purchase"],
+                },
+            ),
+            _tool(
+                "aimipay.confirm_purchase",
+                "Drive an already-submitted purchase to a terminal payment state.",
+                {
+                    "type": "object",
+                    "properties": {
+                        "merchant_base_url": {"type": "string"},
+                        "payment_id": {"type": "string"},
+                        "max_attempts": {"type": "integer"},
+                        "execute_if_needed": {"type": "boolean"},
+                    },
+                    "required": ["payment_id"],
+                },
+            ),
+            _tool(
                 "aimipay.execute_payment",
                 "Execute settlement for a payment intent.",
                 {
@@ -244,6 +291,30 @@ class AimiPayMcpServer:
                 payment_id=args.get("payment_id"),
                 idempotency_key=args.get("idempotency_key"),
                 request_path=args.get("request_path"),
+            )
+        if name == "aimipay.prepare_purchase":
+            return adapter.prepare_purchase(
+                capability_type=args.get("capability_type"),
+                capability_id=args.get("capability_id"),
+                expected_units=args.get("expected_units"),
+                budget_limit_atomic=args.get("budget_limit_atomic"),
+                deposit_atomic=args.get("deposit_atomic"),
+                ttl_s=args.get("ttl_s"),
+                allow_needs_approval=args.get("allow_needs_approval", False),
+            )
+        if name == "aimipay.submit_purchase":
+            return adapter.submit_purchase(
+                prepared_purchase=args["prepared_purchase"],
+                request_body=args.get("request_body", ""),
+                voucher_nonce=args.get("voucher_nonce", 1),
+                request_deadline=args.get("request_deadline"),
+                auto_execute=args.get("auto_execute", True),
+            )
+        if name == "aimipay.confirm_purchase":
+            return adapter.confirm_purchase(
+                args["payment_id"],
+                max_attempts=args.get("max_attempts", 3),
+                execute_if_needed=args.get("execute_if_needed", True),
             )
         if name == "aimipay.execute_payment":
             return adapter.execute_payment(args["payment_id"])

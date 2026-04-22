@@ -4,7 +4,16 @@ import json
 import subprocess
 from pathlib import Path
 
-from shared.protocol_native import build_payment_voucher, build_request_digest, channel_id_of, voucher_digest
+from shared.protocol_native import (
+    build_payment_voucher,
+    build_request_digest,
+    channel_id_of,
+    private_key_to_tron_address,
+    recover_signer_address,
+    sign_digest,
+    verify_digest_signature,
+    voucher_digest,
+)
 
 
 def test_native_protocol_helpers_match_javascript_reference() -> None:
@@ -102,3 +111,17 @@ def test_build_payment_voucher_returns_ethereum_signature_shape() -> None:
     assert payload.voucher_digest.startswith("0x")
     assert payload.buyer_signature.startswith("0x")
     assert len(payload.buyer_signature) == 132
+
+
+def test_native_signature_recovery_roundtrip() -> None:
+    private_key = "0x59c6995e998f97a5a0044966f0945382d7f4a3f1f3f7e61a821a3d1d021b6d2d"
+    digest = "0x" + "12" * 32
+
+    signature = sign_digest(private_key, digest)
+
+    assert verify_digest_signature(
+        digest=digest,
+        signature=signature,
+        signer_address=private_key_to_tron_address(private_key),
+    )
+    assert recover_signer_address(digest=digest, signature=signature).startswith("T")

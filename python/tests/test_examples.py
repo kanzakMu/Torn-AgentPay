@@ -6,9 +6,12 @@ from python.examples.agent_runtime_demo import build_runtime
 from python.examples.buyer_onboarding_app import create_app as create_buyer_onboarding_app
 from python.examples.easy_setup_app import create_app as create_easy_setup_app
 from python.examples.local_end_to_end_demo import build_local_demo_runtime, format_demo_summary
+from python.examples.minimal_buyer_reference import run_reference_buyer_flow
 from python.examples.offchain_stress_drill import format_drill_summary, run_offchain_stress_drill
 from python.examples.merchant_app import create_app
 from python.examples.render_claude_startup_card_demo import render_claude_startup_card_demo
+from seller.gateway import GatewayConfig, GatewaySettlementConfig, install_gateway
+from shared import CapabilityBudgetHint, MerchantPlan, MerchantRoute
 
 
 def test_example_merchant_app_builds_fastapi_app() -> None:
@@ -216,6 +219,103 @@ def test_example_agent_mcp_server_builds_server() -> None:
     server = build_server()
 
     assert server.list_tools()
+
+
+def test_minimal_buyer_reference_runs_against_fixture_gateway() -> None:
+    from fastapi import FastAPI
+
+    class FakeSettlementService:
+        runtime = None
+
+        def execute_payment(self, payment_id: str):
+            record = self.runtime.payment_store.get(payment_id)
+            updated = record.model_copy(
+                update={
+                    "status": "submitted",
+                    "tx_id": "trx_minimal_reference_1",
+                }
+            )
+            self.runtime.payment_store.upsert(updated)
+            return updated
+
+        def execute_pending(self):
+            raise AssertionError("not used")
+
+        def reconcile_payment(self, payment_id: str):
+            record = self.runtime.payment_store.get(payment_id)
+            updated = record.model_copy(
+                update={
+                    "status": "settled",
+                    "confirmation_status": "confirmed",
+                    "confirmation_attempts": int(record.confirmation_attempts) + 1,
+                    "settled_at": 1_700_000_001,
+                    "confirmed_at": 1_700_000_001,
+                }
+            )
+            self.runtime.payment_store.upsert(updated)
+            return updated
+
+    settlement_service = FakeSettlementService()
+    app = FastAPI()
+    runtime = install_gateway(
+        app,
+        GatewayConfig(
+            service_name="Research Copilot",
+            service_description="Pay-per-use research and market data",
+            seller_address="0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+            contract_address="0x1000000000000000000000000000000000000001",
+            token_address="0x2000000000000000000000000000000000000002",
+            routes=[
+                MerchantRoute(
+                    path="/tools/research",
+                    method="POST",
+                    price_atomic=250_000,
+                    description="Paid research route",
+                    capability_id="research-web-search",
+                    capability_type="web_search",
+                    pricing_model="fixed_per_call",
+                    usage_unit="request",
+                    delivery_mode="sync",
+                    response_format="json",
+                    auth_requirements=["request_digest", "buyer_signature"],
+                    capability_tags=["search", "research", "web"],
+                    budget_hint=CapabilityBudgetHint(
+                        typical_units=3,
+                        min_units=1,
+                        suggested_prepaid_atomic=750_000,
+                        notes="Typical coding task needs 3 paid searches",
+                    ),
+                )
+            ],
+            plans=[
+                MerchantPlan(
+                    plan_id="pro-monthly",
+                    name="Pro Monthly",
+                    amount_atomic=9_900_000,
+                    subscribe_path="/billing/subscribe",
+                )
+            ],
+            settlement=GatewaySettlementConfig(
+                repository_root="e:/trade/aimicropay-tron",
+                full_host="http://tron.local",
+                seller_private_key="seller_pk",
+                chain_id=31337,
+                executor_backend="claim_script",
+            ),
+        ),
+        settlement_service=settlement_service,
+    )
+    settlement_service.runtime = runtime
+    client = TestClient(app, base_url="http://merchant.test")
+
+    payload = run_reference_buyer_flow(
+        merchant_base_url="http://merchant.test",
+        http_client=client,
+    )
+
+    assert payload["offers"]
+    assert payload["prepared"]["offer"]["capability_id"] == "research-web-search"
+    assert payload["confirmed"]["status"] == "settled"
 
 
 def test_example_buyer_onboarding_app_can_update_merchant_url(tmp_path, monkeypatch) -> None:

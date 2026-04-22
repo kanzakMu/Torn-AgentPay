@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from urllib.parse import urljoin, urlparse
 
 import httpx
-from shared import build_payment_voucher, resolve_full_host_for_network
+from shared import SignatureEnvelope, build_payment_voucher, resolve_full_host_for_network, verify_signed_payload
 
 from .provisioner import OpenChannelExecution, OpenChannelProvisionPlan, TronProvisioner
 from .wallet import BuyerWallet
@@ -29,7 +29,49 @@ class BuyerClient:
             response = self._http().get(self._url("/.well-known/aimipay.json"))
             response.raise_for_status()
             self._manifest_cache = response.json()
+            self._manifest_cache["_attestation"] = self.verify_manifest_attestation(self._manifest_cache)
         return self._manifest_cache
+
+    def verify_manifest_attestation(self, manifest: dict) -> dict:
+        result = {
+            "seller_profile_signed": False,
+            "seller_profile_verified": False,
+            "manifest_signed": False,
+            "manifest_verified": False,
+            "errors": [],
+        }
+        seller_profile = manifest.get("seller_profile")
+        seller_profile_signature = manifest.get("seller_profile_signature")
+        if seller_profile and seller_profile_signature:
+            result["seller_profile_signed"] = True
+            try:
+                seller_profile_envelope = SignatureEnvelope.model_validate(seller_profile_signature)
+                result["seller_profile_verified"] = verify_signed_payload(
+                    payload=seller_profile,
+                    envelope=seller_profile_envelope,
+                    expected_signer_address=(seller_profile.get("seller_address") or manifest.get("primary_chain", {}).get("seller_address")),
+                )
+                if not result["seller_profile_verified"]:
+                    result["errors"].append("seller_profile_signature_invalid")
+            except Exception:
+                result["errors"].append("seller_profile_signature_invalid")
+        manifest_signature = manifest.get("manifest_signature")
+        if manifest_signature:
+            result["manifest_signed"] = True
+            try:
+                manifest_envelope = SignatureEnvelope.model_validate(manifest_signature)
+                unsigned_manifest = dict(manifest)
+                unsigned_manifest.pop("manifest_signature", None)
+                result["manifest_verified"] = verify_signed_payload(
+                    payload=unsigned_manifest,
+                    envelope=manifest_envelope,
+                    expected_signer_address=manifest.get("primary_chain", {}).get("seller_address"),
+                )
+                if not result["manifest_verified"]:
+                    result["errors"].append("manifest_signature_invalid")
+            except Exception:
+                result["errors"].append("manifest_signature_invalid")
+        return result
 
     def discover(self) -> dict:
         if self._discover_cache is None:
@@ -223,6 +265,96 @@ class BuyerClient:
             "session": result["session"],
             "payment": result["payment"],
         }
+
+    def prepare_purchase(
+        self,
+        *,
+        capability_type: str | None = None,
+        capability_id: str | None = None,
+        expected_units: int | None = None,
+        budget_limit_atomic: int | None = None,
+        deposit_atomic: int | None = None,
+        ttl_s: int | None = None,
+        allow_needs_approval: bool = False,
+    ) -> dict:
+        selection = self.select_capability_offer(
+            capability_type=capability_type,
+            capability_id=capability_id,
+            expected_units=expected_units,
+            budget_limit_atomic=budget_limit_atomic,
+        )
+        chosen = selection["selected"]
+        decision = chosen["decision"]
+        offer = chosen["offer"]
+        if decision["action"] == "skip":
+            return {
+                "selection": selection,
+                "offer": offer,
+                "budget": chosen["budget"],
+                "decision": decision,
+                "session": None,
+            }
+        if decision["action"] == "needs_approval" and not allow_needs_approval:
+            raise ValueError(decision["reason"])
+        session = self.ensure_channel_for_route(
+            route_path=offer["route_path"],
+            method=offer["method"],
+            deposit_atomic=deposit_atomic or decision.get("suggested_prepaid_atomic"),
+            ttl_s=ttl_s,
+        )
+        return {
+            "selection": selection,
+            "offer": offer,
+            "budget": chosen["budget"],
+            "decision": decision,
+            "session": session,
+        }
+
+    def submit_purchase(
+        self,
+        *,
+        prepared_purchase: dict,
+        request_body: str = "",
+        voucher_nonce: int = 1,
+        request_deadline: int | None = None,
+        auto_execute: bool = True,
+    ) -> dict:
+        session = prepared_purchase.get("session")
+        if session is None:
+            raise ValueError("prepared_purchase does not include a channel session")
+        offer = prepared_purchase["offer"]
+        decision = prepared_purchase["decision"]
+        payment = self.create_payment_intent(
+            channel_session=session,
+            route_path=offer["route_path"],
+            method=offer["method"],
+            request_body=request_body,
+            amount_atomic=decision["estimated_total_atomic"],
+            voucher_nonce=voucher_nonce,
+            request_deadline=request_deadline,
+        )
+        if auto_execute:
+            payment = self.execute_payment(payment["payment_id"])
+        return {
+            "offer": offer,
+            "budget": prepared_purchase["budget"],
+            "decision": decision,
+            "session": session,
+            "payment": payment,
+        }
+
+    def confirm_purchase(
+        self,
+        payment_id: str,
+        *,
+        max_attempts: int = 3,
+        execute_if_needed: bool = True,
+    ) -> dict:
+        return self.finalize_payment(
+            payment_id,
+            max_attempts=max_attempts,
+            execute_if_needed=execute_if_needed,
+        )
 
     def pay_for_task(
         self,

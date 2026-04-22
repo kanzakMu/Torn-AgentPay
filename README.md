@@ -85,6 +85,13 @@ Then open:
 
 - the seller console at `http://127.0.0.1:8000/aimipay/install`
 
+Seller-first wrappers are also available:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File python/bootstrap_seller_node.ps1
+powershell -ExecutionPolicy Bypass -File python/run_seller_node.ps1
+```
+
 ### Option D: Run the full local demo
 
 Use this if you want both sides running on one machine and then want to execute a one-shot purchase demo.
@@ -220,6 +227,42 @@ See:
 - [MCP Integration Guide](spec/MCP_INTEGRATION_GUIDE.md)
 - [Agent Integration Guide](spec/AGENT_INTEGRATION_GUIDE.md)
 
+## Protocol Schemas And Conformance
+
+Published protocol schemas and references are available in:
+
+- [Protocol Reference](spec/PROTOCOL_REFERENCE.md)
+- [Discovery Specification](spec/discovery.md)
+- [Schema Bundle](spec/schemas/README.md)
+- [Buyer Implementer Guide](spec/BUYER_IMPLEMENTER_GUIDE.md)
+- [Host Implementer Guide](spec/HOST_IMPLEMENTER_GUIDE.md)
+- [Third-Party Implementer Guide](spec/THIRD_PARTY_IMPLEMENTER_GUIDE.md)
+- [Release Publishing Guide](spec/RELEASE_PUBLISHING_GUIDE.md)
+
+Export schemas from source models:
+
+```powershell
+.venv\Scripts\python.exe -m ops_tools.export_protocol_schemas
+```
+
+Run a live conformance check against a seller:
+
+```powershell
+.venv\Scripts\python.exe -m ops_tools.conformance_check --seller-url http://127.0.0.1:8000
+```
+
+Export offline fixtures for third-party implementers:
+
+```powershell
+.venv\Scripts\python.exe -m ops_tools.export_conformance_fixtures --output-dir .\fixtures
+```
+
+Build distributable protocol and seller artifacts:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File python/build_release_artifacts.ps1
+```
+
 ## Testnet Status
 
 The Nile testnet path has already been exercised end-to-end:
@@ -258,6 +301,7 @@ If you're new to the project, this is the fastest way in:
 4. Read the [Python Runtime Guide](python/README.md)
 5. Read the [Agent Distribution Guide](agent-dist/README.md)
 6. Read the [Seller Install Guide](merchant-dist/README.md)
+7. Read the [Seller Node Package Guide](seller-dist/node/README.md)
 
 ## Security Notes
 

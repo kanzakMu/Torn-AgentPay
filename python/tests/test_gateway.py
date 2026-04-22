@@ -82,6 +82,41 @@ def test_well_known_manifest_exposes_tron_metadata() -> None:
     assert payload["plans"][0]["plan_id"] == "pro-monthly"
 
 
+def test_well_known_manifest_exposes_signed_seller_profile_when_private_key_available() -> None:
+    seller_private_key = "0x59c6995e998f97a5a0044966f0945382d7f4a3f1f3f7e61a821a3d1d021b6d2d"
+    seller_address = "TVaEiLLej394ZxVmHZXYg3HprssbpdcsmW"
+    app = FastAPI()
+    runtime = install_gateway(
+        app,
+        GatewayConfig(
+            service_name="Research Copilot",
+            service_description="Pay-per-use research and market data",
+            seller_address=seller_address,
+            contract_address="0x1000000000000000000000000000000000000001",
+            token_address="0x2000000000000000000000000000000000000002",
+            routes=[MerchantRoute(path="/tools/research", price_atomic=250_000)],
+            settlement=GatewaySettlementConfig(
+                repository_root="e:/trade/aimicropay-tron",
+                full_host="http://tron.local",
+                seller_private_key=seller_private_key,
+                chain_id=31337,
+                executor_backend="claim_script",
+            ),
+        ),
+    )
+    client = TestClient(app)
+
+    response = client.get("/.well-known/aimipay.json")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["schema_version"] == "aimipay.manifest.v1"
+    assert payload["seller_profile"]["schema_version"] == "aimipay.seller-profile.v1"
+    assert payload["seller_profile"]["seller_address"] == seller_address
+    assert payload["seller_profile_signature"]["payload_kind"] == "seller_profile"
+    assert payload["manifest_signature"]["payload_kind"] == "seller_manifest"
+
+
 def test_protocol_reference_exposes_single_source_rules() -> None:
     client, _ = _build_app()
 

@@ -2,6 +2,22 @@
 
 This document defines the canonical protocol for `aimipay-tron-v1`.
 
+## Published Schemas
+
+The repository publishes versioned JSON Schema files for the primary protocol objects:
+
+- `spec/schemas/aimipay.manifest.v1.schema.json`
+- `spec/schemas/aimipay.seller-profile.v1.schema.json`
+- `spec/schemas/aimipay.signature-envelope.v1.schema.json`
+- `spec/schemas/aimipay.offer.v1.schema.json`
+- `spec/schemas/aimipay.route.v1.schema.json`
+- `spec/schemas/aimipay.plan.v1.schema.json`
+- `spec/schemas/aimipay.chain-info.v1.schema.json`
+
+They can be regenerated from source models with:
+
+- `python -m ops_tools.export_protocol_schemas`
+
 ## Single Source Of Truth
 
 - `channel_id` generation: `scripts/protocol.js::channelIdOf`
@@ -11,6 +27,7 @@ This document defines the canonical protocol for `aimipay-tron-v1`.
 - Signature generation: `scripts/protocol.js::signDigest`
 - On-chain verification: `contracts/AimiMicropayChannel.sol`
 - Runtime protocol endpoint: `GET /_aimipay/protocol/reference`
+- Published protocol schemas: `spec/schemas/index.json`
 
 ## Channel ID
 
@@ -92,6 +109,18 @@ Stable error contract surfaces:
 - MCP tool errors: `result.isError = true` plus `structuredContent.error`
 - Worker summaries: `logs[*].error`
 - Payment records: `error_code / error_message / error_retryable`
+
+## Seller Attestation
+
+- `seller_profile` is the seller identity object embedded in the manifest.
+- `seller_profile_signature` signs the canonical `seller_profile` payload.
+- `manifest_signature` signs the canonical manifest payload with signatures removed before hashing.
+- Both signatures use the `SignatureEnvelope` schema and the same wallet-bound signer address.
+- Buyers should verify:
+  - the signature envelope structure
+  - the payload digest
+  - recovered signer address equals `seller_profile.seller_address`
+  - manifest signer equals `primary_chain.seller_address`
 
 ## Idempotency Rules
 

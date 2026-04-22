@@ -61,6 +61,41 @@ class AimiPayAgentAdapter:
             "human_approval_required": bool(payment.get("human_approval_required", False)),
         }
 
+    def prepare_purchase(self, **kwargs) -> dict:
+        prepared = self.client.prepare_purchase(**kwargs)
+        return {
+            **prepared,
+            "next_step": "submit_purchase" if prepared.get("session") else prepared["decision"]["action"],
+            "action_required": None if prepared.get("session") else prepared["decision"]["action"],
+        }
+
+    def submit_purchase(self, **kwargs) -> dict:
+        purchase = self.client.submit_purchase(**kwargs)
+        payment = purchase["payment"]
+        return {
+            **purchase,
+            "safe_to_retry": bool(payment.get("safe_to_retry", False)),
+            "next_step": payment.get("next_step"),
+        }
+
+    def confirm_purchase(
+        self,
+        payment_id: str,
+        *,
+        max_attempts: int = 3,
+        execute_if_needed: bool = True,
+    ) -> dict:
+        payment = self.client.confirm_purchase(
+            payment_id,
+            max_attempts=max_attempts,
+            execute_if_needed=execute_if_needed,
+        )
+        return {
+            "payment": payment,
+            "safe_to_retry": bool(payment.get("safe_to_retry", False)),
+            "next_step": payment.get("next_step"),
+        }
+
     def execute_payment(self, payment_id: str) -> dict:
         payment = self.client.execute_payment(payment_id)
         return {
