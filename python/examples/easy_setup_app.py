@@ -150,7 +150,7 @@ def create_app() -> FastAPI:
         return {
             "ok": True,
             "operation": "start_demo",
-            "summary": "The local buyer + merchant demo is running in a new console window.",
+            "summary": "The local buyer + seller demo is running in a new console window.",
         }
 
     return app
@@ -227,27 +227,27 @@ a { color: #0f766e; text-decoration: none; }
 <div class="shell">
   <div class="hero">
     <h1>Torn-AgentPay Role Setup</h1>
-    <p class="muted">Start by choosing who you are. Buyers configure wallet + merchant access. Merchants configure offers + settlement. Demo mode runs both sides together for a local walkthrough.</p>
+    <p class="muted">Start by choosing who you are. Buyers configure wallet + seller access. Sellers configure offers + settlement. Demo mode runs both sides together for a local walkthrough.</p>
     <p><strong>Choose one path:</strong> Buyer, Merchant, or Demo.</p>
   </div>
   <div class="grid">
     <div class="card">
       <h2>Buyer Path</h2>
-      <p class="muted">Use this if you are the agent or buyer. We will set up the wallet, bind a merchant URL, and open the buyer onboarding UI.</p>
+      <p class="muted">Use this if you are the agent or buyer. We will set up the wallet, bind a seller service URL, and open the buyer onboarding UI.</p>
       <ol class="steps">
         <li>Install the buyer runtime</li>
-        <li>Save the merchant URL</li>
+        <li>Save the seller service URL</li>
         <li>Open buyer onboarding</li>
         <li>Review offers and prepare your first purchase</li>
       </ol>
       <div class="field">
-        <label for="buyer-merchant-url">Merchant URL</label>
+        <label for="buyer-merchant-url">Seller Service URL</label>
         <input id="buyer-merchant-url" type="url" value="http://127.0.0.1:8000">
       </div>
       <div class="field">
         <label for="buyer-network-profile">Network Profile</label>
         <select id="buyer-network-profile">
-          <option value="">merchant-driven</option>
+          <option value="">seller-driven</option>
           <option value="local">local</option>
           <option value="nile">nile</option>
           <option value="mainnet">mainnet</option>
@@ -259,11 +259,11 @@ a { color: #0f766e; text-decoration: none; }
     </div>
     <div class="card">
       <h2>Merchant Path</h2>
-      <p class="muted">Use this if you are the seller or service operator. We will prepare the merchant runtime, then open the merchant dashboard for route and plan setup.</p>
+      <p class="muted">Use this if you are the seller or service operator. We will prepare the seller runtime, then open the seller console for route and plan setup.</p>
       <ol class="steps">
-        <li>Install the merchant runtime</li>
+        <li>Install the seller runtime</li>
         <li>Choose a network profile</li>
-        <li>Open the merchant dashboard</li>
+        <li>Open the seller console</li>
         <li>Configure routes, plans, and branding</li>
       </ol>
       <div class="field">
@@ -275,19 +275,19 @@ a { color: #0f766e; text-decoration: none; }
           <option value="custom">custom</option>
         </select>
       </div>
-      <button id="install-merchant">Install Merchant</button>
+      <button id="install-merchant">Install Seller</button>
       <div id="merchant-status" class="status">Waiting for action.</div>
     </div>
     <div class="card">
       <h2>Demo Path</h2>
       <p class="muted">Use this if you want to see both sides working together on one machine. Keep the local stack running, then trigger a one-shot purchase demo.</p>
       <ol class="steps">
-        <li>Start the local buyer + merchant stack</li>
-        <li>Open the buyer and merchant pages</li>
+        <li>Start the local buyer + seller stack</li>
+        <li>Open the buyer and seller pages</li>
         <li>Run a one-shot local purchase demo</li>
       </ol>
       <button id="start-buyer-ui" class="secondary">Start Buyer Onboarding UI</button>
-      <button id="start-merchant-ui" class="secondary">Start Merchant Dashboard</button>
+      <button id="start-merchant-ui" class="secondary">Start Seller Console</button>
       <button id="start-demo" class="secondary">Run Local Demo Purchase</button>
       <div id="launch-status" class="status">Waiting for action.</div>
     </div>
@@ -299,7 +299,7 @@ a { color: #0f766e; text-decoration: none; }
     </div>
     <div class="card">
       <h2>Merchant Status</h2>
-      <div id="merchant-summary" class="status">Loading merchant status...</div>
+      <div id="merchant-summary" class="status">Loading seller status...</div>
     </div>
     <div class="card">
       <h2>Quick Links</h2>
@@ -336,11 +336,11 @@ async function refreshStatus() {
   document.getElementById("merchant-summary").textContent = renderChecks(data.merchant);
   document.getElementById("quick-links").innerHTML = `
     <div><strong>Buyer:</strong> <span class="muted">${data.links.buyer_bootstrap_command}</span></div>
-    <div><strong>Merchant:</strong> <span class="muted">${data.links.merchant_bootstrap_command}</span></div>
+    <div><strong>Seller:</strong> <span class="muted">${data.links.merchant_bootstrap_command}</span></div>
     <div><strong>Local stack:</strong> <span class="muted">${data.links.local_stack_command}</span></div>
     <div><strong>Demo purchase:</strong> <span class="muted">${data.links.local_demo_command}</span></div>
     <div style="margin-top:8px;"><a href="${data.links.buyer_onboarding_local}" target="_blank">Open buyer onboarding UI</a></div>
-    <div><a href="${data.links.merchant_dashboard_local}" target="_blank">Open merchant dashboard</a></div>
+    <div><a href="${data.links.merchant_dashboard_local}" target="_blank">Open seller console</a></div>
   `;
 }
 document.getElementById("install-buyer").addEventListener("click", async () => {
@@ -362,7 +362,7 @@ document.getElementById("install-buyer").addEventListener("click", async () => {
 });
 document.getElementById("install-merchant").addEventListener("click", async () => {
   const box = document.getElementById("merchant-status");
-  box.textContent = "Installing merchant...";
+  box.textContent = "Installing seller...";
   try {
     const result = await postJson("/aimipay/easy-setup/install/merchant", {
       network_profile: document.getElementById("merchant-network-profile").value,
@@ -387,12 +387,12 @@ document.getElementById("start-buyer-ui").addEventListener("click", async () => 
 });
 document.getElementById("start-merchant-ui").addEventListener("click", async () => {
   const box = document.getElementById("launch-status");
-  box.textContent = "Starting merchant dashboard...";
+  box.textContent = "Starting seller console...";
   try {
     const result = await postJson("/aimipay/easy-setup/start/merchant", {port: 8000});
     box.innerHTML = `Merchant dashboard is starting.<br><a href="${result.url}" target="_blank">${result.url}</a>`;
   } catch (error) {
-    box.textContent = `Could not start merchant dashboard.\\n\\n${error.message}`;
+    box.textContent = `Could not start seller console.\\n\\n${error.message}`;
   }
 });
 document.getElementById("start-demo").addEventListener("click", async () => {

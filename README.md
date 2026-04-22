@@ -125,13 +125,13 @@ Use this if you want an AI agent host to install Torn-AgentPay as a local packag
 Codex-style home-local install:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target codex --mode home-local --merchant-url https://merchant.example
+powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target codex --mode home-local --merchant-url https://seller.example
 ```
 
 Install all supported local agent artifacts:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target all --mode home-local --merchant-url https://merchant.example
+powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target all --mode home-local --merchant-url https://seller.example
 ```
 
 Supported host targets include:
@@ -149,14 +149,14 @@ Supported host targets include:
 Use this if you want the installer to fetch the repository from GitHub and install the agent package in one step.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/kanzakMu/Torn-AgentPay/main/python/install_agent_from_github.ps1 -OutFile $env:TEMP\\aimipay-agent-install.ps1; & $env:TEMP\\aimipay-agent-install.ps1 -RepoUrl https://github.com/kanzakMu/Torn-AgentPay.git -Target codex -MerchantUrl https://merchant.example"
+powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/kanzakMu/Torn-AgentPay/main/python/install_agent_from_github.ps1 -OutFile $env:TEMP\\aimipay-agent-install.ps1; & $env:TEMP\\aimipay-agent-install.ps1 -RepoUrl https://github.com/kanzakMu/Torn-AgentPay.git -Target codex -MerchantUrl https://seller.example"
 ```
 
 Notes:
 
 - the `raw.githubusercontent.com` bootstrap path works only when the repository is public
 - the installer itself clones from the `RepoUrl` you pass in
-- replace `https://merchant.example` with a real seller service URL if you want onboarding to bind it immediately
+- replace `https://seller.example` with a real seller service URL if you want onboarding to bind it immediately
 
 ## Main Flows
 

@@ -52,7 +52,7 @@ The quickest website path is:
 1. start the seller runtime
 2. copy `website/aimipay.checkout.js`
 3. copy the markup from `website/embed.checkout.html`
-4. point `data-merchant-base-url` at your public seller base URL
+4. point `data-merchant-base-url` at your public seller base URL (the attribute name stays `merchant` for compatibility)
 
 ## Important Scope Note
 

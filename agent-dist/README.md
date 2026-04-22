@@ -21,19 +21,19 @@ The installer currently supports:
 Home-local install for one host target:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target codex --mode home-local --merchant-url https://merchant.example
+powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target codex --mode home-local --merchant-url https://seller.example
 ```
 
 Install every supported target:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target all --mode home-local --merchant-url https://merchant.example
+powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target all --mode home-local --merchant-url https://seller.example
 ```
 
 GitHub direct install:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/kanzakMu/Torn-AgentPay/main/python/install_agent_from_github.ps1 -OutFile $env:TEMP\\torn-agentpay-agent-install.ps1; & $env:TEMP\\torn-agentpay-agent-install.ps1 -RepoUrl https://github.com/kanzakMu/Torn-AgentPay.git -Target codex -MerchantUrl https://merchant.example"
+powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/kanzakMu/Torn-AgentPay/main/python/install_agent_from_github.ps1 -OutFile $env:TEMP\\torn-agentpay-agent-install.ps1; & $env:TEMP\\torn-agentpay-agent-install.ps1 -RepoUrl https://github.com/kanzakMu/Torn-AgentPay.git -Target codex -MerchantUrl https://seller.example"
 ```
 
 ## What the Installer Does

@@ -791,6 +791,6 @@
   } catch (error) {
     setHtml("health-status", "Failed to load seller console data.");
     setHtml("manifest-status", String(error));
-    setHtml("discover-status", "Check whether the merchant runtime is running and public config exists.");
+    setHtml("discover-status", "Check whether the seller runtime is running and the public seller config exists.");
   }
 })();

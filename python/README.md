@@ -74,7 +74,7 @@ powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1
 Seller-driven install:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1 -MerchantUrl https://merchant.example
+powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1 -MerchantUrl https://seller.example
 ```
 
 In seller-driven mode, the buyer runtime prefers the seller's manifest and discovery data for:
@@ -117,7 +117,7 @@ powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.c
 AI host installer:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/kanzakMu/Torn-AgentPay/main/python/install_agent_from_github.ps1 -OutFile $env:TEMP\\torn-agentpay-agent-install.ps1; & $env:TEMP\\torn-agentpay-agent-install.ps1 -RepoUrl https://github.com/kanzakMu/Torn-AgentPay.git -Target codex -MerchantUrl https://merchant.example"
+powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/kanzakMu/Torn-AgentPay/main/python/install_agent_from_github.ps1 -OutFile $env:TEMP\\torn-agentpay-agent-install.ps1; & $env:TEMP\\torn-agentpay-agent-install.ps1 -RepoUrl https://github.com/kanzakMu/Torn-AgentPay.git -Target codex -MerchantUrl https://seller.example"
 ```
 
 ## Install and Health Tools
