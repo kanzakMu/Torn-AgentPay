@@ -1,147 +1,159 @@
 # Torn-AgentPay
 
-Agent-native payment infrastructure for AI agents and sellers on Tron.
+AI-facing payment infrastructure for agent applications on Tron.
 
-Torn-AgentPay lets an AI agent discover paid capabilities, open payment channels, submit payments, and drive settlement across onchain and offchain flows. It also gives sellers a local runtime, onboarding flow, and lightweight control plane for publishing services to agents.
+Torn-AgentPay lets an AI agent discover paid capabilities, estimate budget, decide whether a purchase is allowed, create a payment, drive settlement, and recover unfinished payments through structured protocol payloads. The project includes a Tron payment-channel contract, Python buyer and seller runtimes, MCP tools, a Codex-style skill, and host installers for external AI apps.
 
-## What This Project Is
+The current direction is not a human dashboard first. It is an agent-facing payment protocol: AI hosts should be able to ask what is available, what it costs, what payment state is in progress, and what action is safe to take next.
 
-This repository combines four pieces that usually live separately:
+## Current Status
 
-- a Tron payment-channel contract
-- a Python buyer runtime for AI agents
-- a Python seller runtime
-- install and distribution tooling for MCP, Codex-style hosts, and other agent runtimes
+Implemented and tested:
 
-The goal is simple:
+- Tron micropayment channel contract with per-channel salt to prevent voucher replay across reopened channels.
+- Seller gateway for manifest, discovery, channel opening, payment intents, payment status, settlement execution, reconciliation, diagnostics, and agent status.
+- Buyer runtime for offer discovery, budget quotes, purchase planning, channel preparation, payment submission, finalization, and recovery.
+- AI-facing protocol payloads for status, capabilities, budgets, payment lifecycle, recovery, and next action hints.
+- MCP server and tools for agent hosts.
+- Skill-only install path with a local command runner, so the skill can still call functionality without plugin/MCP host loading.
+- External AI host one-command installers for Codex-style hosts, generic MCP hosts, Claude-style configs, CUA, OpenClaw, and Hermes.
+- Admin protection for seller ops/config routes, localhost fallback, bearer/hash token support, and audit events.
+- Buyer onboarding origin protection and local-write hardening.
+- Release safety tooling that blocks local env, wallet, database, vendor, and dry-run state from artifacts.
 
-**Give an AI agent a package or command, and let it install, discover offers, and pay for capabilities with minimal manual setup.**
+Validation at the time this README was rewritten:
 
-## What Works Today
+```bash
+pytest python/tests
+# 158 passed
 
-The current repository is already past the prototype stage. Today it includes:
+npm test
+# 13 passing
+```
 
-- Tron payment-channel contracts and execution scripts
-- local Hardhat tests and smoke flows
-- buyer lifecycle: discover, estimate, create payment, execute, reconcile, finalize
-- seller lifecycle: publish routes, expose manifest/discovery, execute settlement, reconcile status
-- agent installation paths for MCP, Codex-style hosts, OpenClaw, and Hermes-style connectors
-- buyer onboarding with wallet setup, funding guidance, seller URL binding, and offer discovery
-- seller console with route/plan editing, pause/resume, history, diff, and rollback
-- Nile testnet deployment and end-to-end validation
+## Architecture
 
-## Who This Is For
+```text
+AI host / agent
+  |
+  | MCP tools or skill runner
+  v
+Buyer runtime
+  |
+  | discover, quote, plan, pay, recover
+  v
+Seller gateway
+  |
+  | channel + voucher settlement
+  v
+Tron payment-channel contract
+```
 
-This repository is most useful if you are:
+Main components:
 
-- building an AI agent that needs to buy external services
-- building a seller runtime that wants to sell agent-callable capabilities
-- experimenting with agent commerce, micropayments, or capability marketplaces
-- integrating MCP or similar host environments with payment-aware tools
+- `contracts/`: Tron/EVM-compatible payment-channel contract.
+- `scripts/`: deployment and contract execution scripts.
+- `python/buyer/`: buyer SDK, MCP server, agent adapter, wallet/provisioner logic.
+- `python/seller/`: seller gateway, settlement, worker, observability.
+- `python/shared/`: shared models, protocol helpers, discovery, signatures, native digest logic.
+- `skills/aimipay-agent/`: Codex-style skill and skill-only runner.
+- `plugins/aimipay-agent/`: plugin package for hosts that support plugin loading.
+- `agent-dist/`: connector manifests and generated host configuration templates.
+- `spec/`: protocol, discovery, MCP, host, buyer, and third-party implementer guides.
+
+## AI-Facing Protocol
+
+All high-level agent payloads use:
+
+```json
+{
+  "schema_version": "aimipay.agent-protocol.v1",
+  "kind": "...",
+  "next_actions": []
+}
+```
+
+Implemented `kind` values:
+
+- `agent_state`: readiness, merchant status, capabilities, pending payments, next actions.
+- `capability_catalog`: available paid capabilities and auto-purchase summary.
+- `budget_quote`: estimated cost, budget decision, and whether auto purchase is allowed.
+- `purchase_plan`: selected offer and no-side-effect purchase plan.
+- `payment_state`: lifecycle status, terminal flag, next step, and recovery hint.
+- `payment_recovery`: unfinished/recoverable payments and suggested recovery actions.
+
+Useful MCP tools:
+
+- `aimipay.get_agent_state`
+- `aimipay.list_offers`
+- `aimipay.quote_budget`
+- `aimipay.plan_purchase`
+- `aimipay.prepare_purchase`
+- `aimipay.submit_purchase`
+- `aimipay.get_payment_status`
+- `aimipay.finalize_payment`
+- `aimipay.recover_payment`
+- `aimipay.check_wallet_funding`
+- `aimipay.run_onboarding`
+
+Protocol reference endpoint:
+
+```text
+GET /_aimipay/protocol/reference
+```
+
+Agent-readable seller status endpoint:
+
+```text
+GET /_aimipay/ops/agent-status
+```
 
 ## Quick Start
 
-Before you start:
+Requirements:
 
 - Node.js 20+
 - Python 3.11+
-- Windows PowerShell for the install scripts below
+- PowerShell on Windows for the helper scripts
 
-Choose the path that matches what you want to do.
-
-### Option A: Validate the protocol locally
-
-Use this if you want to verify the contract and local payment flow first.
+Install dependencies and run tests:
 
 ```bash
 npm install
 npm test
-npm run smoke:local
 ```
 
-### Option B: Start as a buyer
-
-Use this if you only want the buyer or agent side first.
+Python tests:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1
-powershell -ExecutionPolicy Bypass -File python/run_buyer_onboarding.ps1
+py -3 -m venv .pytest-tmp/review-venv
+.\.pytest-tmp\review-venv\Scripts\python.exe -m pip install -r python\requirements.txt
+.\.pytest-tmp\review-venv\Scripts\python.exe -m pytest python\tests
 ```
 
-Then open:
+## Install Into an AI Host
 
-- the buyer onboarding UI at `http://127.0.0.1:8011/aimipay/buyer/onboarding`
+Use this path when the goal is external AI host integration.
 
-### Option C: Start as a seller
-
-Use this if you only want the seller or service-operator side first.
+Codex-style install:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1
-powershell -ExecutionPolicy Bypass -File python/run_merchant_stack.ps1
+powershell -ExecutionPolicy Bypass -File python/install_ai_host.ps1 --host codex --merchant-url https://merchant.example
 ```
 
-Then open:
-
-- the seller console at `http://127.0.0.1:8000/aimipay/install`
-
-Seller-first wrappers are also available:
+Generic MCP host:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/bootstrap_seller_node.ps1
-powershell -ExecutionPolicy Bypass -File python/run_seller_node.ps1
+powershell -ExecutionPolicy Bypass -File python/install_ai_host.ps1 --host mcp --merchant-url https://merchant.example
 ```
 
-### Option D: Run the full local demo
-
-Use this if you want both sides running on one machine and then want to execute a one-shot purchase demo.
+Claude-style config:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1
-powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1
-powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1
+powershell -ExecutionPolicy Bypass -File python/install_ai_host.ps1 --host claude --merchant-url https://merchant.example
 ```
 
-That starts both local UIs:
-
-- the seller console at `http://127.0.0.1:8000/aimipay/install`
-- the buyer onboarding UI at `http://127.0.0.1:8011/aimipay/buyer/onboarding`
-
-Then run a one-shot local purchase:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File python/run_local_demo.ps1
-```
-
-### Option E: Use the role-based local setup hub
-
-Use this if you want one local page that separates Buyer, Seller, and Demo paths:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File python/start_easy_setup.ps1
-```
-
-Then open:
-
-- `http://127.0.0.1:8010/aimipay/easy-setup`
-
-### Option F: Install into an AI host
-
-Use this if you want an AI agent host to install Torn-AgentPay as a local package.
-
-Codex-style home-local install:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target codex --mode home-local --merchant-url https://seller.example
-```
-
-Install all supported local agent artifacts:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target all --mode home-local --merchant-url https://seller.example
-```
-
-Supported host targets include:
+Supported host targets:
 
 - `codex`
 - `mcp`
@@ -150,172 +162,177 @@ Supported host targets include:
 - `openclaw`
 - `hermes`
 - `all`
+- `skill`
 
-### Option G: Install directly from GitHub
+The installer generates:
 
-Use this if you want the installer to fetch the repository from GitHub and install the agent package in one step.
+- `aimipay-install-report.json`
+- `aimipay-install-next-steps.md`
+- host-specific MCP/config files
+- installed skill/plugin/connector artifacts as needed
+
+## Skill-Only Install
+
+Use skill-only install when the host can load instructions but not plugins/MCP config.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/kanzakMu/Torn-AgentPay/main/python/install_agent_from_github.ps1 -OutFile $env:TEMP\\aimipay-agent-install.ps1; & $env:TEMP\\aimipay-agent-install.ps1 -RepoUrl https://github.com/kanzakMu/Torn-AgentPay.git -Target codex -MerchantUrl https://seller.example"
+powershell -ExecutionPolicy Bypass -File python/install_skill.ps1 --mode home-local
 ```
 
-Notes:
+or:
 
-- the `raw.githubusercontent.com` bootstrap path works only when the repository is public
-- the installer itself clones from the `RepoUrl` you pass in
-- replace `https://seller.example` with a real seller service URL if you want onboarding to bind it immediately
+```bash
+python -m ops_tools.install_skill --mode home-local
+```
 
-## Main Flows
+The installed skill includes:
 
-### Buyer / Agent
+- `SKILL.md`
+- `skill-runtime.json`
+- `aimipay_skill_runner.py`
 
-- choose the buyer path
-- install agent package or buyer runtime
-- create or load buyer wallet
-- connect a seller URL
-- discover offers
-- open a payment channel
-- create and execute a payment
-- reconcile until terminal status
+The runner lets the skill call real functionality without MCP host loading:
 
-### Seller
+```powershell
+python <skill-path>/aimipay_skill_runner.py list-tools
+python <skill-path>/aimipay_skill_runner.py get-agent-state
+python <skill-path>/aimipay_skill_runner.py list-offers
+python <skill-path>/aimipay_skill_runner.py quote-budget --capability-id research-web-search --expected-units 3
+python <skill-path>/aimipay_skill_runner.py plan-purchase --capability-type web_search --budget-limit-atomic 1000000
+python <skill-path>/aimipay_skill_runner.py get-payment-status --payment-id pay_123
+python <skill-path>/aimipay_skill_runner.py recover-payment --payment-id pay_123
+```
 
-- choose the seller path
-- install seller runtime
-- configure service metadata, routes, and plans
-- expose manifest and discovery endpoints
-- accept payment intents
-- execute settlement and reconcile confirmations
-- manage configuration through the seller console
+## Install Directly From GitHub
 
-## Seller Runtime
+For a clean machine, download the installer and let it fetch the repository:
 
-The seller side includes:
+```powershell
+powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/kanzakMu/Torn-AgentPay/main/python/install_agent_from_github.ps1 -OutFile $env:TEMP\aimipay-agent-install.ps1; & $env:TEMP\aimipay-agent-install.ps1 -RepoUrl https://github.com/kanzakMu/Torn-AgentPay.git -Host codex -MerchantUrl https://merchant.example"
+```
 
-- local bootstrap and doctor scripts
-- website/SaaS embed starter assets
-- a lightweight seller console at `/aimipay/install`
-- route, plan, and branding persistence
-- config history, diff preview, rollback, and pause/resume controls
+Replace:
 
-Start it locally with:
+- `-Host codex` with `mcp`, `claude`, `cua`, `openclaw`, `hermes`, `all`, or `skill`.
+- `https://merchant.example` with the seller service URL.
+
+## Local Demo
+
+Bootstrap buyer:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File python/bootstrap_buyer.ps1
+powershell -ExecutionPolicy Bypass -File python/run_buyer_onboarding.ps1
+```
+
+Bootstrap seller:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File python/bootstrap_merchant.ps1
 powershell -ExecutionPolicy Bypass -File python/run_merchant_stack.ps1
 ```
 
-Then open:
+Run both sides:
 
-- `http://127.0.0.1:8000/aimipay/install`
+```powershell
+powershell -ExecutionPolicy Bypass -File python/run_local_stack.ps1
+```
 
-## AI Host Distribution
+Run a one-shot local purchase:
 
-This repository already includes agent-facing packaging and onboarding for:
+```powershell
+powershell -ExecutionPolicy Bypass -File python/run_local_demo.ps1
+```
 
-- Codex-style hosts
-- MCP hosts
-- Claude Desktop-style configs
-- CUA-style configs
-- OpenClaw-style configs
-- Hermes-style configs
+Optional setup hub:
 
-See:
+```powershell
+powershell -ExecutionPolicy Bypass -File python/start_easy_setup.ps1
+```
+
+## Seller Gateway
+
+Core endpoints:
+
+- `GET /.well-known/aimipay.json`
+- `GET /_aimipay/discover`
+- `POST /_aimipay/channels/open`
+- `POST /_aimipay/payment-intents`
+- `GET /_aimipay/payments/{payment_id}`
+- `GET /_aimipay/payments/pending`
+- `GET /_aimipay/payments/recover`
+- `POST /_aimipay/settlements/execute`
+- `POST /_aimipay/settlements/reconcile`
+- `GET /_aimipay/ops/health`
+- `GET /_aimipay/ops/diagnostics`
+- `GET /_aimipay/ops/agent-status`
+
+Admin/ops endpoints are protected by bearer token or hash token when configured, with localhost/testclient fallback for local development.
+
+## Security Notes
+
+Important hardening already implemented:
+
+- Channel IDs include a buyer-generated `channel_salt`.
+- Voucher replay across reopened buyer/seller/token channels is covered by tests.
+- Seller ops and install/config writes require admin access.
+- Buyer onboarding rejects non-local origins and no longer allows arbitrary cross-origin writes.
+- Diagnostics redact private keys, admin tokens, and signatures.
+- Release tooling blocks ignored local state such as `.env.local`, wallet files, SQLite databases, `.vendor`, `.venv`, and dry-run outputs.
+
+Before publishing release artifacts:
+
+```bash
+npm run preflight:security
+npm run release:clean
+```
+
+For Nile validation:
+
+```bash
+npm run validate:nile
+```
+
+## Test Commands
+
+Contract and script tests:
+
+```bash
+npm test
+```
+
+Python test suite:
+
+```powershell
+$env:PYTHONPATH = "python"
+python -m pytest python\tests
+```
+
+Security preflight:
+
+```bash
+npm run preflight:security
+```
+
+Release artifact cleanup:
+
+```bash
+npm run release:clean
+```
+
+## Documentation
 
 - [Agent Distribution Guide](agent-dist/README.md)
 - [Host Install Checklist](agent-dist/HOST_INSTALL_CHECKLIST.md)
+- [Protocol Reference](spec/PROTOCOL_REFERENCE.md)
 - [MCP Integration Guide](spec/MCP_INTEGRATION_GUIDE.md)
 - [Agent Integration Guide](spec/AGENT_INTEGRATION_GUIDE.md)
-
-## Protocol Schemas And Conformance
-
-Published protocol schemas and references are available in:
-
-- [Protocol Reference](spec/PROTOCOL_REFERENCE.md)
-- [Discovery Specification](spec/discovery.md)
-- [Schema Bundle](spec/schemas/README.md)
 - [Buyer Implementer Guide](spec/BUYER_IMPLEMENTER_GUIDE.md)
 - [Host Implementer Guide](spec/HOST_IMPLEMENTER_GUIDE.md)
 - [Third-Party Implementer Guide](spec/THIRD_PARTY_IMPLEMENTER_GUIDE.md)
 - [Release Publishing Guide](spec/RELEASE_PUBLISHING_GUIDE.md)
+- [Tron-First Development Guide](spec/TRON_FIRST_DEVELOPMENT_GUIDE.md)
 
-Export schemas from source models:
+## Production Readiness Boundary
 
-```powershell
-.venv\Scripts\python.exe -m ops_tools.export_protocol_schemas
-```
-
-Run a live conformance check against a seller:
-
-```powershell
-.venv\Scripts\python.exe -m ops_tools.conformance_check --seller-url http://127.0.0.1:8000
-```
-
-Export offline fixtures for third-party implementers:
-
-```powershell
-.venv\Scripts\python.exe -m ops_tools.export_conformance_fixtures --output-dir .\fixtures
-```
-
-Build distributable protocol and seller artifacts:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File python/build_release_artifacts.ps1
-```
-
-## Testnet Status
-
-The Nile testnet path has already been exercised end-to-end:
-
-- mock token deployed
-- payment-channel contract deployed
-- buyer and seller wallets prepared
-- onchain open + claim validated
-- Python seller runtime lifecycle validated against Nile
-
-Operational references:
-
-- [Nile Launch Checklist](python/NILE_LAUNCH_CHECKLIST.md)
-- [Deployment Runbook](python/DEPLOYMENT_RUNBOOK.md)
-- [Mainnet Cutover Checklist](python/MAINNET_CUTOVER_CHECKLIST.md)
-
-## Repository Layout
-
-```text
-contracts/      Payment-channel contracts
-scripts/        Deploy/open/claim/close/cancel helpers
-test/           Hardhat tests and smoke coverage
-python/         Buyer, seller, shared runtime, install tooling, tests
-merchant-dist/  Seller onboarding console and embed assets
-agent-dist/     Agent package manifests, host templates, onboarding assets
-spec/           Protocol and integration documentation
-```
-
-## Recommended Reading Order
-
-If you're new to the project, this is the fastest way in:
-
-1. Read this README
-2. Read the [Protocol Reference](spec/PROTOCOL_REFERENCE.md)
-3. Read the [Agent Integration Guide](spec/AGENT_INTEGRATION_GUIDE.md)
-4. Read the [Python Runtime Guide](python/README.md)
-5. Read the [Agent Distribution Guide](agent-dist/README.md)
-6. Read the [Seller Install Guide](merchant-dist/README.md)
-7. Read the [Seller Node Package Guide](seller-dist/node/README.md)
-
-## Security Notes
-
-- Never commit real wallet files, private keys, or live env files
-- Use the provided `*.example` files as templates
-- Treat testnet and mainnet keys as secrets, even in demos
-
-## Project Positioning
-
-Torn-AgentPay is not just a contract repository and not just an MCP wrapper. It is a full-stack attempt at agent commerce infrastructure:
-
-- programmable payments on Tron
-- offchain lifecycle management
-- seller tooling
-- AI host installation and onboarding
-
-If your goal is to let AI agents install a package and immediately start paying for capabilities, this repository is the core of that workflow.
+This repository has the protocol, SDK, MCP tools, skill install, host install, security hardening, and test coverage needed for a serious integration prototype. Before production mainnet use, run funded Nile/mainnet end-to-end validation, deploy with real secret management, configure admin tokens, enable durable storage, and operate settlement workers under process supervision.
