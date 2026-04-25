@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import os
+import hashlib
+import secrets
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -59,6 +61,8 @@ def create_app() -> FastAPI:
         "AIMIPAY_REPOSITORY_ROOT",
         str(Path(__file__).resolve().parents[2]),
     )
+    if not Path(repository_root).exists():
+        repository_root = str(Path(__file__).resolve().parents[2])
     merchant_dist_root = Path(repository_root) / "merchant-dist"
     dashboard_html = merchant_dist_root / "dashboard" / "install_dashboard.html"
     full_host = os.environ.get("AIMIPAY_FULL_HOST", "http://127.0.0.1:9090")
@@ -94,6 +98,13 @@ def create_app() -> FastAPI:
     network_name = (os.environ.get("AIMIPAY_NETWORK_NAME") or os.environ.get("AIMIPAY_NETWORK_PROFILE") or "nile").strip() or "nile"
     chain_id = int((os.environ.get("AIMIPAY_CHAIN_ID") or "31337").strip() or "31337")
     executor_backend = os.environ.get("AIMIPAY_SETTLEMENT_BACKEND", "claim_script")
+    admin_token = (os.environ.get("AIMIPAY_ADMIN_TOKEN") or "").strip() or None
+    admin_token_sha256 = (os.environ.get("AIMIPAY_ADMIN_TOKEN_SHA256") or "").strip() or None
+    admin_read_token = (os.environ.get("AIMIPAY_ADMIN_READ_TOKEN") or "").strip() or None
+    admin_read_token_sha256 = (os.environ.get("AIMIPAY_ADMIN_READ_TOKEN_SHA256") or "").strip() or None
+    audit_log_path = (os.environ.get("AIMIPAY_AUDIT_LOG_PATH") or "").strip() or None
+    if _is_production_mode() and seller_private_key not in {"", "seller_private_key"}:
+        raise RuntimeError("AIMIPAY_SELLER_PRIVATE_KEY must not be provided as plain env in production mode")
 
     app = FastAPI(title=install_config.service_name)
     if merchant_dist_root.exists():
@@ -106,6 +117,11 @@ def create_app() -> FastAPI:
         contract_address=contract_address,
         token_address=token_address,
         network=network_name,
+        admin_token=admin_token,
+        admin_token_sha256=admin_token_sha256,
+        admin_read_token=admin_read_token,
+        admin_read_token_sha256=admin_read_token_sha256,
+        audit_log_path=audit_log_path,
         routes=install_config.routes,
         plans=install_config.plans,
         settlement=GatewaySettlementConfig(
@@ -121,6 +137,10 @@ def create_app() -> FastAPI:
     app.state.aimipay_merchant_config_path = merchant_config_path
     app.state.aimipay_public_config_path = public_config_path
     app.state.aimipay_public_base_url = public_base_url
+    app.state.aimipay_admin_token = admin_token
+    app.state.aimipay_admin_token_sha256 = admin_token_sha256
+    app.state.aimipay_admin_read_token = admin_read_token
+    app.state.aimipay_admin_read_token_sha256 = admin_read_token_sha256
 
     @app.get("/aimipay/demo/health")
     async def healthcheck() -> dict:
@@ -131,7 +151,8 @@ def create_app() -> FastAPI:
         return FileResponse(dashboard_html)
 
     @app.get("/aimipay/install/config")
-    async def merchant_install_config():
+    async def merchant_install_config(request: Request):
+        _require_admin_access(request, app, action="read")
         return {
             **app.state.aimipay_install_config.model_dump(mode="json"),
             "runtime": _runtime_profile_payload(
@@ -142,13 +163,27 @@ def create_app() -> FastAPI:
             ),
         }
 
+    @app.get("/aimipay/install/diagnostics")
+    async def merchant_install_diagnostics(request: Request):
+        _require_admin_access(request, app, action="read")
+        runtime.gateway.event_logger.emit("admin_install_diagnostics_requested", caller=_caller_host(request))
+        return runtime.gateway.diagnostic_bundle()
+
+    @app.get("/aimipay/install/agent-status")
+    async def merchant_install_agent_status(request: Request):
+        _require_admin_access(request, app, action="read")
+        runtime.gateway.event_logger.emit("admin_install_agent_status_requested", caller=_caller_host(request))
+        return runtime.gateway.agent_status()
+
     @app.get("/aimipay/install/config/history")
-    async def merchant_install_history():
+    async def merchant_install_history(request: Request):
+        _require_admin_access(request, app, action="read")
         history = list_config_history(config_path=app.state.aimipay_merchant_config_path)
         return {"versions": [item.model_dump(mode="json") for item in history]}
 
     @app.get("/aimipay/install/config/history/{revision}/diff")
-    async def merchant_install_history_diff(revision: int):
+    async def merchant_install_history_diff(request: Request, revision: int):
+        _require_admin_access(request, app, action="read")
         history = list_config_history(config_path=app.state.aimipay_merchant_config_path)
         target = next((item for item in history if item.revision == revision), None)
         if target is None:
@@ -161,21 +196,27 @@ def create_app() -> FastAPI:
         }
 
     @app.post("/aimipay/install/config/route")
-    async def save_route(route: MerchantRoute):
+    async def save_route(request: Request, route: MerchantRoute):
+        _require_admin_access(request, app, action="write")
+        runtime.gateway.event_logger.emit("admin_config_route_upsert", path=route.path, method=route.method, caller=_caller_host(request))
         config = upsert_route(app.state.aimipay_install_config, route)
         _apply_install_config(app, runtime, config, reason="route_upsert")
         _sync_public_config(app)
         return config.model_dump(mode="json")
 
     @app.delete("/aimipay/install/config/route")
-    async def remove_route(payload: DeleteRouteRequest):
+    async def remove_route(request: Request, payload: DeleteRouteRequest):
+        _require_admin_access(request, app, action="write")
+        runtime.gateway.event_logger.emit("admin_config_route_delete", path=payload.path, method=payload.method, caller=_caller_host(request))
         config = delete_route(app.state.aimipay_install_config, path=payload.path, method=payload.method)
         _apply_install_config(app, runtime, config, reason="route_delete")
         _sync_public_config(app)
         return config.model_dump(mode="json")
 
     @app.post("/aimipay/install/config/route/toggle")
-    async def route_toggle(payload: ToggleRouteRequest):
+    async def route_toggle(request: Request, payload: ToggleRouteRequest):
+        _require_admin_access(request, app, action="write")
+        runtime.gateway.event_logger.emit("admin_config_route_toggle", path=payload.path, method=payload.method, enabled=payload.enabled, caller=_caller_host(request))
         config = toggle_route(
             app.state.aimipay_install_config,
             path=payload.path,
@@ -187,28 +228,36 @@ def create_app() -> FastAPI:
         return config.model_dump(mode="json")
 
     @app.post("/aimipay/install/config/plan")
-    async def save_plan(plan: MerchantPlan):
+    async def save_plan(request: Request, plan: MerchantPlan):
+        _require_admin_access(request, app, action="write")
+        runtime.gateway.event_logger.emit("admin_config_plan_upsert", plan_id=plan.plan_id, caller=_caller_host(request))
         config = upsert_plan(app.state.aimipay_install_config, plan)
         _apply_install_config(app, runtime, config, reason="plan_upsert")
         _sync_public_config(app)
         return config.model_dump(mode="json")
 
     @app.delete("/aimipay/install/config/plan/{plan_id}")
-    async def remove_plan(plan_id: str):
+    async def remove_plan(request: Request, plan_id: str):
+        _require_admin_access(request, app, action="write")
+        runtime.gateway.event_logger.emit("admin_config_plan_delete", plan_id=plan_id, caller=_caller_host(request))
         config = delete_plan(app.state.aimipay_install_config, plan_id=plan_id)
         _apply_install_config(app, runtime, config, reason="plan_delete")
         _sync_public_config(app)
         return config.model_dump(mode="json")
 
     @app.post("/aimipay/install/config/plan/{plan_id}/toggle")
-    async def plan_toggle(plan_id: str, payload: TogglePlanRequest):
+    async def plan_toggle(request: Request, plan_id: str, payload: TogglePlanRequest):
+        _require_admin_access(request, app, action="write")
+        runtime.gateway.event_logger.emit("admin_config_plan_toggle", plan_id=plan_id, enabled=payload.enabled, caller=_caller_host(request))
         config = toggle_plan(app.state.aimipay_install_config, plan_id=plan_id, enabled=payload.enabled)
         _apply_install_config(app, runtime, config, reason="plan_toggle")
         _sync_public_config(app)
         return config.model_dump(mode="json")
 
     @app.post("/aimipay/install/config/branding")
-    async def save_branding(payload: BrandingUpdateRequest):
+    async def save_branding(request: Request, payload: BrandingUpdateRequest):
+        _require_admin_access(request, app, action="write")
+        runtime.gateway.event_logger.emit("admin_config_branding_update", caller=_caller_host(request))
         current = app.state.aimipay_install_config
         brand_update = current.brand.model_copy(
             update={
@@ -229,7 +278,9 @@ def create_app() -> FastAPI:
         return config.model_dump(mode="json")
 
     @app.post("/aimipay/install/config/rollback/{revision}")
-    async def rollback_config(revision: int):
+    async def rollback_config(request: Request, revision: int):
+        _require_admin_access(request, app, action="write")
+        runtime.gateway.event_logger.emit("admin_config_rollback", revision=revision, caller=_caller_host(request))
         config = rollback_merchant_install_config(
             config_path=app.state.aimipay_merchant_config_path,
             revision=revision,
@@ -239,6 +290,58 @@ def create_app() -> FastAPI:
         return config.model_dump(mode="json")
 
     return app
+
+
+def _require_admin_access(request: Request, app: FastAPI, *, action: str) -> None:
+    tokens = _accepted_admin_secrets(app, action=action)
+    if tokens:
+        auth = request.headers.get("authorization", "")
+        header_token = request.headers.get("x-aimipay-admin-token", "")
+        bearer = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+        if _token_matches(bearer, tokens) or _token_matches(header_token, tokens):
+            return
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"error": "admin_token_required"})
+    host = _caller_host(request)
+    if host in {"127.0.0.1", "localhost", "::1", "testclient"}:
+        return
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "admin_access_requires_localhost_or_token"})
+
+
+def _accepted_admin_secrets(app: FastAPI, *, action: str) -> list[tuple[str, str]]:
+    values: list[tuple[str, str]] = []
+    if action == "read":
+        if app.state.aimipay_admin_read_token:
+            values.append(("plain", app.state.aimipay_admin_read_token.strip()))
+        if app.state.aimipay_admin_read_token_sha256:
+            values.append(("sha256", app.state.aimipay_admin_read_token_sha256.strip()))
+    if app.state.aimipay_admin_token:
+        values.append(("plain", app.state.aimipay_admin_token.strip()))
+    if app.state.aimipay_admin_token_sha256:
+        values.append(("sha256", app.state.aimipay_admin_token_sha256.strip()))
+    return [(kind, value) for kind, value in values if value]
+
+
+def _token_matches(candidate: str, accepted: list[tuple[str, str]]) -> bool:
+    if not candidate:
+        return False
+    digest = hashlib.sha256(candidate.encode("utf-8")).hexdigest()
+    for kind, expected in accepted:
+        if kind == "plain" and secrets.compare_digest(candidate, expected):
+            return True
+        if kind == "sha256" and secrets.compare_digest(digest, expected.lower()):
+            return True
+    return False
+
+
+def _caller_host(request: Request) -> str:
+    if request.client is None:
+        return ""
+    return (request.client.host or "").lower()
+
+
+def _is_production_mode() -> bool:
+    value = (os.environ.get("AIMIPAY_ENV") or os.environ.get("ENVIRONMENT") or "").strip().lower()
+    return value in {"prod", "production", "mainnet"}
 
 
 def _apply_install_config(app: FastAPI, runtime, config: MerchantInstallConfig, *, reason: str) -> None:
@@ -286,6 +389,14 @@ def _runtime_profile_payload(app: FastAPI, runtime, *, network_profile: str, ful
         "resolved_chain_rpc": resolved_full_host,
         "chain_id": chain.chain_id,
         "settlement_backend": chain.settlement_backend,
+        "admin_token_configured": bool(
+            app.state.aimipay_admin_token
+            or app.state.aimipay_admin_token_sha256
+            or app.state.aimipay_admin_read_token
+            or app.state.aimipay_admin_read_token_sha256
+        ),
+        "audit_log_configured": bool(runtime.gateway.config.audit_log_path),
+        "production_mode": _is_production_mode(),
         "seller_address": chain.seller_address,
         "contract_address": chain.contract_address,
         "token_address": chain.asset_address,

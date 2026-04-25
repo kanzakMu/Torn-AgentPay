@@ -14,6 +14,8 @@ def render_claude_startup_card_demo(
     output_file: str | Path | None = None,
 ) -> str:
     repo_root = Path(repository_root or Path(__file__).resolve().parents[2]).resolve()
+    if not repo_root.exists():
+        repo_root = Path(__file__).resolve().parents[2]
     card_path = Path(card_file or repo_root / "agent-dist" / "assets" / "startup-card" / "example.startup_card.json").resolve()
     theme_path = Path(theme_file or repo_root / "agent-dist" / "assets" / "startup-card" / "theme.tokens.json").resolve()
 

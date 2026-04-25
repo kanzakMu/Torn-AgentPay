@@ -18,11 +18,18 @@ def make_payment_id() -> str:
     return f"pay_{secrets.token_hex(12)}"
 
 
-def make_channel_id(*, buyer_address: str, seller_address: str, token_address: str) -> str:
+def make_channel_id(
+    *,
+    buyer_address: str,
+    seller_address: str,
+    token_address: str,
+    channel_salt: str = "0x0000000000000000000000000000000000000000000000000000000000000000",
+) -> str:
     return channel_id_of(
         buyer_address=buyer_address,
         seller_address=seller_address,
         token_address=token_address,
+        channel_salt=channel_salt,
     )
 
 

@@ -22,10 +22,12 @@ class ReferenceProvisioner:
                 buyer_address="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
                 seller_address=plan.seller_address,
                 token_address=plan.token_address,
+                channel_salt=plan.channel_salt,
             ),
             contract_address=plan.contract_address,
             deposit_atomic=plan.deposit_atomic,
             expires_at=plan.expires_at,
+            channel_salt=plan.channel_salt,
         )
 
 

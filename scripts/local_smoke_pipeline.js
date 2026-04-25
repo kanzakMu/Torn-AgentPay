@@ -69,6 +69,7 @@ async function main() {
   const latestBlock = await ethers.provider.getBlock("latest");
   const expiresAt = parseBigInt(plan?.expires_at, BigInt(latestBlock.timestamp + ttlSeconds));
   const requestDeadline = parseBigInt(plan?.request_deadline, BigInt(latestBlock.timestamp + requestTtlSeconds));
+  const channelSalt = plan?.channel_salt || ethers.hexlify(ethers.randomBytes(32));
 
   const approveTx = await token.connect(buyer).approve(await channel.getAddress(), totalDeposit);
   await approveTx.wait();
@@ -78,10 +79,11 @@ async function main() {
     await token.getAddress(),
     totalDeposit,
     expiresAt,
+    channelSalt,
   );
   await openTx.wait();
 
-  const channelId = await channel.channelIdOf(buyer.address, seller.address, await token.getAddress());
+  const channelId = await channel.channelIdOf(buyer.address, seller.address, await token.getAddress(), channelSalt);
   const chainId = (await ethers.provider.getNetwork()).chainId;
   const requestDigest =
     plan?.request_digest ||
@@ -127,6 +129,7 @@ async function main() {
     return {
       tx_id: claimTx.hash,
       channel_id: channelId,
+      channel_salt: channelSalt,
       buyer_address: buyer.address,
       seller_address: seller.address,
       token_address: await token.getAddress(),
@@ -148,6 +151,7 @@ async function main() {
     token_address: await token.getAddress(),
     contract_address: await channel.getAddress(),
     channel_id: channelId,
+    channel_salt: channelSalt,
     total_deposit_atomic: totalDeposit.toString(),
     claim_amount_atomic: claimAmount.toString(),
     request_method: requestMethod,

@@ -22,7 +22,16 @@ from .models import (
     TaskBudget,
 )
 from .payments import InMemoryPaymentStore, SqlitePaymentStore, make_channel_id, make_payment_id
-from .protocol import build_payment_lifecycle, build_protocol_reference
+from .protocol import (
+    agent_protocol_envelope,
+    agent_state_payload,
+    budget_quote_payload,
+    build_payment_lifecycle,
+    build_protocol_reference,
+    capability_catalog_payload,
+    payment_state_payload,
+    recovery_payload,
+)
 from .protocol_native import build_payment_voucher, build_request_digest, channel_id_of, normalize_tron_address, voucher_digest
 from .network_profiles import MANAGED_NETWORK_KEYS, get_network_profile, load_network_profiles, resolve_full_host_for_network
 
@@ -50,9 +59,15 @@ __all__ = [
     "build_endpoints",
     "build_manifest",
     "build_seller_profile",
+    "agent_protocol_envelope",
+    "agent_state_payload",
+    "budget_quote_payload",
     "build_payment_lifecycle",
     "build_payment_voucher",
     "build_protocol_reference",
+    "capability_catalog_payload",
+    "payment_state_payload",
+    "recovery_payload",
     "build_request_digest",
     "canonical_json_bytes",
     "channel_id_of",

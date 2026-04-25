@@ -26,13 +26,21 @@ function normalizeTronAddress(value, fullHost) {
   return ethers.getAddress(`0x${hex.slice(2)}`);
 }
 
-function channelIdOf({ buyer, seller, token, fullHost }) {
+function normalizeBytes32(value, fieldName = "bytes32") {
+  if (typeof value !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(value)) {
+    throw new Error(`${fieldName} must be a 32-byte hex string`);
+  }
+  return value;
+}
+
+function channelIdOf({ buyer, seller, token, channelSalt = "0x0000000000000000000000000000000000000000000000000000000000000000", fullHost }) {
   return ethers.solidityPackedKeccak256(
-    ["address", "address", "address"],
+    ["address", "address", "address", "bytes32"],
     [
       normalizeTronAddress(buyer, fullHost),
       normalizeTronAddress(seller, fullHost),
       normalizeTronAddress(token, fullHost),
+      normalizeBytes32(channelSalt, "channelSalt"),
     ],
   );
 }
@@ -158,6 +166,7 @@ module.exports = {
   buildRequestDigest,
   cancelDigest,
   channelIdOf,
+  normalizeBytes32,
   normalizeTronAddress,
   signDigest,
   tronWebInstance,

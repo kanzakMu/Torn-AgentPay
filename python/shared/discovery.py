@@ -20,6 +20,7 @@ def build_endpoints(*, management_prefix: str = "/_aimipay", base_url: str | Non
         "list_pending_payments": f"{root}{normalized_prefix}/payments/pending",
         "payment_status_template": f"{root}{normalized_prefix}/payments/{{payment_id}}",
         "ops_health": f"{root}{normalized_prefix}/ops/health",
+        "agent_status": f"{root}{normalized_prefix}/ops/agent-status",
         "ops_payment_action_template": f"{root}{normalized_prefix}/ops/payments/{{payment_id}}/action",
     }
 

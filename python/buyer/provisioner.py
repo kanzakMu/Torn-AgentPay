@@ -7,6 +7,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+ZERO_CHANNEL_SALT = "0x0000000000000000000000000000000000000000000000000000000000000000"
 
 @dataclass(slots=True)
 class OpenChannelProvisionPlan:
@@ -17,6 +18,7 @@ class OpenChannelProvisionPlan:
     token_address: str
     deposit_atomic: int
     expires_at: int
+    channel_salt: str = ZERO_CHANNEL_SALT
 
     def to_dict(self) -> dict:
         return {
@@ -27,6 +29,7 @@ class OpenChannelProvisionPlan:
             "token_address": self.token_address,
             "deposit_atomic": self.deposit_atomic,
             "expires_at": self.expires_at,
+            "channel_salt": self.channel_salt,
         }
 
 
@@ -41,6 +44,7 @@ class OpenChannelExecution:
     contract_address: str
     deposit_atomic: int
     expires_at: int
+    channel_salt: str = ZERO_CHANNEL_SALT
 
 
 @dataclass(slots=True)
@@ -75,6 +79,7 @@ class TronProvisioner:
             contract_address=str(payload["contract_address"]),
             deposit_atomic=int(payload["deposit_atomic"]),
             expires_at=int(payload["expires_at"]),
+            channel_salt=str(payload.get("channel_salt", getattr(plan, "channel_salt", ZERO_CHANNEL_SALT))),
         )
 
 

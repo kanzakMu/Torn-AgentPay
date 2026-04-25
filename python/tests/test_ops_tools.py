@@ -8,16 +8,21 @@ from fastapi.testclient import TestClient
 from ops_tools.network_profile_setup import apply_network_profile
 from ops_tools.conformance_check import run_protocol_conformance, run_protocol_conformance_from_files
 from ops_tools.build_release_artifacts import build_release_artifacts
+from ops_tools.clean_release import build_clean_release
 from ops_tools.export_conformance_fixtures import export_conformance_fixtures
 from ops_tools.export_protocol_schemas import export_protocol_schemas
+from ops_tools.nile_validation import run_nile_validation
 from ops_tools.package_protocol_bundle import package_protocol_bundle
 from ops_tools.package_reference_buyer import package_reference_buyer
 from ops_tools.package_seller_node import package_seller_node
 from ops_tools.preflight import build_gateway_config_from_env
+from ops_tools.security_preflight import build_security_preflight_report, hash_admin_token
 from ops_tools.target_dry_run import run_target_dry_run
 from ops_tools.validate_release_artifacts import validate_release_artifacts
 from seller.gateway import GatewayConfig, GatewaySettlementConfig, install_gateway
 from shared import PaymentRecord, SqlitePaymentStore
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_build_gateway_config_from_env_can_load_explicit_env_file(tmp_path: Path, monkeypatch) -> None:
@@ -25,7 +30,7 @@ def test_build_gateway_config_from_env_can_load_explicit_env_file(tmp_path: Path
     env_file.write_text(
         "\n".join(
             [
-                "AIMIPAY_REPOSITORY_ROOT=e:/trade/aimicropay-tron",
+                f"AIMIPAY_REPOSITORY_ROOT={REPOSITORY_ROOT.as_posix()}",
                 "AIMIPAY_FULL_HOST=http://127.0.0.1:9090",
                 "AIMIPAY_SETTLEMENT_BACKEND=local_smoke",
                 "AIMIPAY_CHAIN_ID=31337",
@@ -44,6 +49,94 @@ def test_build_gateway_config_from_env_can_load_explicit_env_file(tmp_path: Path
 
     assert config.seller_address == "TRX_SELLER_TARGET"
     assert config.sqlite_path == str(tmp_path / "payments.db")
+    assert config.admin_token is None
+
+
+def test_security_preflight_requires_production_guards(tmp_path: Path, monkeypatch) -> None:
+    env_file = tmp_path / "target.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                f"AIMIPAY_REPOSITORY_ROOT={REPOSITORY_ROOT.as_posix()}",
+                "AIMIPAY_ENV=production",
+                "AIMIPAY_PUBLIC_BASE_URL=https://seller.example",
+                "AIMIPAY_CHAIN_ID=728126428",
+                "AIMIPAY_CONTRACT_ADDRESS=TRX_CONTRACT_TARGET",
+                "AIMIPAY_TOKEN_ADDRESS=TRX_USDT_TARGET",
+                f"AIMIPAY_SQLITE_PATH={tmp_path / 'payments.db'}",
+                f"AIMIPAY_ADMIN_TOKEN_SHA256={hash_admin_token('a-production-admin-token-123')}",
+                f"AIMIPAY_AUDIT_LOG_PATH={tmp_path / 'audit.jsonl'}",
+                "AIMIPAY_SELLER_PRIVATE_KEY=",
+                "AIMIPAY_BUYER_PRIVATE_KEY=",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("AIMIPAY_SELLER_PRIVATE_KEY", raising=False)
+    monkeypatch.delenv("AIMIPAY_BUYER_PRIVATE_KEY", raising=False)
+
+    report = build_security_preflight_report(env_file=env_file, production=True)
+
+    assert report["ok"] is True
+    assert any(item["name"] == "admin_token_configured" and item["ok"] for item in report["checks"])
+
+
+def test_security_preflight_rejects_plain_env_key_in_production(tmp_path: Path) -> None:
+    env_file = tmp_path / "target.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                f"AIMIPAY_REPOSITORY_ROOT={REPOSITORY_ROOT.as_posix()}",
+                "AIMIPAY_ENV=production",
+                "AIMIPAY_PUBLIC_BASE_URL=https://seller.example",
+                "AIMIPAY_CHAIN_ID=728126428",
+                "AIMIPAY_CONTRACT_ADDRESS=TRX_CONTRACT_TARGET",
+                "AIMIPAY_TOKEN_ADDRESS=TRX_USDT_TARGET",
+                f"AIMIPAY_SQLITE_PATH={tmp_path / 'payments.db'}",
+                f"AIMIPAY_ADMIN_TOKEN_SHA256={hash_admin_token('a-production-admin-token-123')}",
+                f"AIMIPAY_AUDIT_LOG_PATH={tmp_path / 'audit.jsonl'}",
+                "AIMIPAY_SELLER_PRIVATE_KEY=plain-secret",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    report = build_security_preflight_report(env_file=env_file, production=True)
+
+    assert report["ok"] is False
+    assert any(item["name"] == "seller_key_not_plain_env_in_production" and not item["ok"] for item in report["checks"])
+
+
+def test_validate_release_artifacts_rejects_local_state_files(tmp_path: Path) -> None:
+    for relative in [
+        "release-report.json",
+        "release-manifest.json",
+        "RELEASE_NOTES.md",
+        "protocol-schemas/aimipay.manifest.v1.schema.json",
+        "protocol-bundle/README.md",
+        "protocol-bundle/PROTOCOL_REFERENCE.md",
+        "protocol-bundle/BUYER_IMPLEMENTER_GUIDE.md",
+        "protocol-bundle/HOST_IMPLEMENTER_GUIDE.md",
+        "protocol-bundle/COMPATIBILITY_POLICY.md",
+        "protocol-bundle/CONFORMANCE_CHECKLIST.md",
+        "seller-node/seller-node.manifest.json",
+        "reference-buyer/reference-buyer.manifest.json",
+        "reference-buyer/minimal-buyer-reference.py",
+        "conformance-fixtures/manifest.json",
+        "conformance-fixtures/discover.json",
+        "conformance-fixtures/attestation.json",
+        "conformance-fixtures/purchase.json",
+    ]:
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}", encoding="utf-8")
+    forbidden = tmp_path / "seller-node" / ".env.local"
+    forbidden.write_text("AIMIPAY_SELLER_PRIVATE_KEY=secret\n", encoding="utf-8")
+
+    report = validate_release_artifacts(dist_dir=tmp_path)
+
+    assert report["ok"] is False
+    assert "seller-node\\.env.local" in {item.replace("/", "\\") for item in report["forbidden"]}
 
 
 def test_run_target_dry_run_generates_report_and_snapshot_restore(tmp_path: Path) -> None:
@@ -71,7 +164,7 @@ def test_run_target_dry_run_generates_report_and_snapshot_restore(tmp_path: Path
     env_file.write_text(
         "\n".join(
             [
-                "AIMIPAY_REPOSITORY_ROOT=e:/trade/aimicropay-tron",
+                f"AIMIPAY_REPOSITORY_ROOT={REPOSITORY_ROOT.as_posix()}",
                 "AIMIPAY_FULL_HOST=http://127.0.0.1:9090",
                 "AIMIPAY_SETTLEMENT_BACKEND=local_smoke",
                 "AIMIPAY_CHAIN_ID=31337",
@@ -106,7 +199,7 @@ def test_apply_network_profile_sets_managed_values(tmp_path: Path) -> None:
     env_file.write_text(
         "\n".join(
             [
-                "AIMIPAY_REPOSITORY_ROOT=E:/trade/aimicropay-tron",
+                f"AIMIPAY_REPOSITORY_ROOT={REPOSITORY_ROOT.as_posix()}",
                 "AIMIPAY_FULL_HOST=http://placeholder.local",
                 "AIMIPAY_SELLER_ADDRESS=TRX_SELLER",
             ]
@@ -135,7 +228,7 @@ def test_protocol_conformance_check_reports_signed_manifest_ok() -> None:
             contract_address="0x1000000000000000000000000000000000000001",
             token_address="0x2000000000000000000000000000000000000002",
             settlement=GatewaySettlementConfig(
-                repository_root="e:/trade/aimicropay-tron",
+                repository_root=str(REPOSITORY_ROOT),
                 full_host="http://tron.local",
                 seller_private_key="0x59c6995e998f97a5a0044966f0945382d7f4a3f1f3f7e61a821a3d1d021b6d2d",
                 chain_id=31337,
@@ -158,7 +251,7 @@ def test_protocol_conformance_check_reports_signed_manifest_ok() -> None:
 
 def test_export_protocol_schemas_materializes_expected_bundle(tmp_path: Path) -> None:
     report = export_protocol_schemas(
-        repository_root="e:/trade/aimicropay-tron",
+        repository_root=REPOSITORY_ROOT,
         output_dir=tmp_path / "schemas",
     )
 
@@ -172,7 +265,7 @@ def test_export_protocol_schemas_materializes_expected_bundle(tmp_path: Path) ->
 
 def test_package_protocol_bundle_materializes_release_files(tmp_path: Path) -> None:
     report = package_protocol_bundle(
-        repository_root="e:/trade/aimicropay-tron",
+        repository_root=REPOSITORY_ROOT,
         output_dir=tmp_path / "protocol-bundle",
     )
 
@@ -191,7 +284,7 @@ def test_package_protocol_bundle_materializes_release_files(tmp_path: Path) -> N
 
 def test_build_release_artifacts_materializes_dist_layout(tmp_path: Path) -> None:
     report = build_release_artifacts(
-        repository_root="e:/trade/aimicropay-tron",
+        repository_root=REPOSITORY_ROOT,
         output_dir=tmp_path / "dist",
     )
 
@@ -206,9 +299,21 @@ def test_build_release_artifacts_materializes_dist_layout(tmp_path: Path) -> Non
     assert (output_dir / "release-report.json").exists()
 
 
+def test_build_clean_release_validates_dist_layout(tmp_path: Path) -> None:
+    report = build_clean_release(
+        repository_root=REPOSITORY_ROOT,
+        output_dir=tmp_path / "clean-dist",
+    )
+
+    output_dir = Path(report["output_dir"])
+    assert report["ok"] is True
+    assert (output_dir / "clean-release-report.json").exists()
+    assert report["validation"]["forbidden"] == []
+
+
 def test_validate_release_artifacts_reports_complete_dist_layout(tmp_path: Path) -> None:
     report = build_release_artifacts(
-        repository_root="e:/trade/aimicropay-tron",
+        repository_root=REPOSITORY_ROOT,
         output_dir=tmp_path / "dist",
     )
 
@@ -216,6 +321,14 @@ def test_validate_release_artifacts_reports_complete_dist_layout(tmp_path: Path)
 
     assert validation["ok"] is True
     assert validation["missing"] == []
+
+
+def test_nile_validation_dry_run_reports_without_transactions() -> None:
+    report = run_nile_validation(repository_root=REPOSITORY_ROOT, dry_run=True)
+
+    assert report["ok"] is True
+    assert report["network"] == "nile"
+    assert report["dry_run"] is True
 
 
 def test_export_conformance_fixtures_materializes_offline_bundle(tmp_path: Path) -> None:
@@ -245,7 +358,7 @@ def test_protocol_conformance_from_files_validates_purchase_fixture(tmp_path: Pa
 
 def test_package_seller_node_materializes_expected_files(tmp_path: Path) -> None:
     report = package_seller_node(
-        repository_root="e:/trade/aimicropay-tron",
+        repository_root=REPOSITORY_ROOT,
         output_dir=tmp_path / "seller-node",
     )
 
@@ -259,7 +372,7 @@ def test_package_seller_node_materializes_expected_files(tmp_path: Path) -> None
 
 def test_package_reference_buyer_materializes_expected_files(tmp_path: Path) -> None:
     report = package_reference_buyer(
-        repository_root="e:/trade/aimicropay-tron",
+        repository_root=REPOSITORY_ROOT,
         output_dir=tmp_path / "reference-buyer",
     )
 

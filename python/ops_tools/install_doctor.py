@@ -81,6 +81,7 @@ def build_install_report(*, repository_root: str | Path | None = None) -> dict[s
         "ok": bootstrap_ready,
         "bootstrap_ready": bootstrap_ready,
         "run_ready": run_ready,
+        "wallet_ready": buyer_wallet_ready,
         "merchant_urls": merchant_urls,
         "checks": checks,
         "next_steps": next_steps,
@@ -190,6 +191,7 @@ def format_install_report_html(report: dict[str, Any]) -> str:
     )
     onboarding = report.get("onboarding") or {}
     merchant = onboarding.get("merchant") or {}
+    security = report.get("security") or {}
     merchant_url = merchant.get("selected_url") or ", ".join(report.get("merchant_urls") or [])
     offer_items = (merchant.get("offers") or {}).get("items") or []
     offer_cards = "".join(
@@ -233,6 +235,11 @@ def format_install_report_html(report: dict[str, Any]) -> str:
             ".actions ul { margin-top: 8px; }",
             ".offer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 12px; }",
             ".offer-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; }",
+            ".wizard { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 18px 0; }",
+            ".wizard-step { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:14px; }",
+            ".pill { display:inline-block; padding:5px 9px; border-radius:999px; background:#e2e8f0; color:#334155; font-weight:700; font-size:12px; }",
+            ".pill-ok { background:#dcfce7; color:#166534; }",
+            ".pill-warn { background:#fef3c7; color:#92400e; }",
             ".muted { color: #64748b; font-size: 13px; }",
             "code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }",
             "</style>",
@@ -246,6 +253,20 @@ def format_install_report_html(report: dict[str, Any]) -> str:
             "<div class=\"panel\">",
             "<h2>Buyer Onboarding</h2>",
             "<p>Use this first screen to confirm the merchant URL, wallet readiness, and the next action before the first paid purchase.</p>",
+            "<div class=\"wizard\">",
+            "<div class=\"wizard-step\"><span class=\"pill pill-ok\">1</span><h3>Network</h3><p class=\"muted\">Confirm local, Nile, or mainnet profile before funding.</p></div>",
+            f"<div class=\"wizard-step\"><span class=\"pill {'pill-ok' if report.get('wallet_ready') else 'pill-warn'}\">2</span><h3>Wallet</h3><p class=\"muted\">Wallet ready: {html.escape(str(report.get('wallet_ready', False)))}</p></div>",
+            f"<div class=\"wizard-step\"><span class=\"pill {'pill-ok' if merchant_url else 'pill-warn'}\">3</span><h3>Seller URL</h3><p class=\"muted\">{html.escape(merchant_url or 'Connect a seller URL')}</p></div>",
+            f"<div class=\"wizard-step\"><span class=\"pill {'pill-ok' if offer_items else 'pill-warn'}\">4</span><h3>Offers</h3><p class=\"muted\">Discovered offers: {html.escape(str(len(offer_items)))}</p></div>",
+            "</div>",
+            "<div class=\"panel\" style=\"background:#fff;border-color:#e2e8f0;\">",
+            "<h2>Agent install status</h2>",
+            "<div class=\"field-row\">",
+            f"<div class=\"field\"><label>Admin token</label><div class=\"value\">{html.escape('configured' if security.get('admin_token_configured') else 'local only')}</div></div>",
+            f"<div class=\"field\"><label>Local origin guard</label><div class=\"value\">{html.escape(str(security.get('local_origin_required', True)))}</div></div>",
+            f"<div class=\"field\"><label>CORS origins</label><div class=\"value\">{html.escape(', '.join(security.get('cors_origins') or []))}</div></div>",
+            "</div>",
+            "</div>",
             "<div class=\"field-row\">",
             "<div class=\"field\">",
             "<label>Merchant URL</label>",

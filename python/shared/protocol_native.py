@@ -80,11 +80,18 @@ def normalize_tron_address(value: str) -> str:
     return f"0x{payload[1:].hex()}"
 
 
-def channel_id_of(*, buyer_address: str, seller_address: str, token_address: str) -> str:
+def channel_id_of(
+    *,
+    buyer_address: str,
+    seller_address: str,
+    token_address: str,
+    channel_salt: str = "0x0000000000000000000000000000000000000000000000000000000000000000",
+) -> str:
     packed = (
         _address_bytes(buyer_address)
         + _address_bytes(seller_address)
         + _address_bytes(token_address)
+        + _bytes32(channel_salt)
     )
     return f"0x{keccak256(packed).hex()}"
 

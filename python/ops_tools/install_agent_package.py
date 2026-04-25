@@ -11,6 +11,14 @@ from typing import Any
 
 HOST_TARGETS = {"codex", "mcp", "claude", "cua", "openclaw", "hermes"}
 BASE_TARGETS = {"skill", "plugin", "connector"}
+HOST_CONFIG_NAMES = {
+    "codex": ("codex", "codex-package.json"),
+    "mcp": ("mcp", "generic_mcp_server.json"),
+    "claude": ("claude", "claude_desktop_config.json"),
+    "cua": ("cua", "cua_mcp_config.json"),
+    "openclaw": ("openclaw", "openclaw_mcp_config.json"),
+    "hermes": ("hermes", "hermes_mcp_config.json"),
+}
 
 
 def install_agent_package(
@@ -46,6 +54,12 @@ def install_agent_package(
     if "skill" in install_plan:
         skill_dest = layout["skill_root"] / "aimipay-agent"
         _copy_tree(source_skill, skill_dest)
+        _write_skill_runtime_config(
+            skill_dest,
+            repo_root=repo_root,
+            env_values=env_values,
+            env_file=env_file,
+        )
         installed["skill"] = str(skill_dest)
 
     if "plugin" in install_plan:
@@ -93,6 +107,7 @@ def install_agent_package(
         "installed": installed,
         "generated_host_configs": generated_host_configs,
     }
+    report["next_steps"] = _build_next_steps(report)
 
     if run_verify:
         from ops_tools.verify_agent_installation import verify_agent_installation
@@ -127,6 +142,10 @@ def install_agent_package(
             emit_output=False,
         )
         report["startup_onboarding"] = onboarding_report
+
+    report["next_steps"] = _build_next_steps(report)
+    report["install_report_path"] = str(_write_install_report(layout["host_config_root"], report))
+    report["next_steps_path"] = str(_write_next_steps_markdown(layout["host_config_root"], report))
 
     if output_json:
         print(json.dumps(report, indent=2, sort_keys=True))
@@ -229,6 +248,32 @@ def _patch_plugin_mcp(mcp_path: Path, *, repo_root: Path, env_values: dict[str, 
     server["command"] = sys.executable
     server["env"] = _server_env(repo_root=repo_root, env_values=env_values, existing=server.get("env"))
     mcp_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _write_skill_runtime_config(
+    skill_root: Path,
+    *,
+    repo_root: Path,
+    env_values: dict[str, str],
+    env_file: str | Path | None,
+) -> None:
+    runtime_config = {
+        "schema_version": "aimipay.skill-runtime.v1",
+        "repository_root": str(repo_root),
+        "python_executable": sys.executable,
+        "env_file": str(Path(env_file).resolve() if env_file else repo_root / "python" / ".env.local"),
+        "merchant_urls": [
+            item.strip()
+            for item in env_values.get("AIMIPAY_MERCHANT_URLS", "").split(",")
+            if item.strip()
+        ],
+        "full_host": env_values.get("AIMIPAY_FULL_HOST"),
+        "runner": "aimipay_skill_runner.py",
+    }
+    (skill_root / "skill-runtime.json").write_text(
+        json.dumps(runtime_config, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
 
 
 def _generate_host_config(
@@ -366,7 +411,99 @@ def _format_report(report: dict[str, Any]) -> str:
     onboarding = report.get("startup_onboarding")
     if onboarding is not None:
         lines.append(f"- startup onboarding next step: {onboarding.get('next_step')}")
+    if report.get("install_report_path"):
+        lines.append(f"- install report: {report['install_report_path']}")
+    if report.get("next_steps_path"):
+        lines.append(f"- next steps: {report['next_steps_path']}")
+    for item in report.get("next_steps", []):
+        lines.append(f"- next action [{item['target']}]: {item['action']}")
     return "\n".join(lines)
+
+
+def _build_next_steps(report: dict[str, Any]) -> list[dict[str, Any]]:
+    installed = report.get("installed", {})
+    generated = report.get("generated_host_configs", {})
+    steps: list[dict[str, Any]] = []
+    if "skill" in installed:
+        skill_path = Path(installed["skill"])
+        steps.append(
+            {
+                "target": "skill",
+                "action": "reload_or_restart_agent_skills",
+                "path": str(skill_path),
+                "runner": str(skill_path / "aimipay_skill_runner.py"),
+                "example": f'python "{skill_path / "aimipay_skill_runner.py"}" get-agent-state',
+            }
+        )
+    if "codex" in generated:
+        steps.append(
+            {
+                "target": "codex",
+                "action": "restart_codex_or_import_generated_package",
+                "path": generated["codex"],
+                "note": "Codex can use the installed skill, plugin, connector manifest, and MCP entrypoint from this package.",
+            }
+        )
+    if "mcp" in generated:
+        steps.append(
+            {
+                "target": "mcp",
+                "action": "point_mcp_host_to_generated_config",
+                "path": generated["mcp"],
+                "note": "Use this generic MCP server config if the host accepts a standalone MCP JSON file.",
+            }
+        )
+    for target in ["claude", "cua", "openclaw", "hermes"]:
+        if target in generated:
+            steps.append(
+                {
+                    "target": target,
+                    "action": "merge_generated_mcp_config_then_restart_host",
+                    "path": generated[target],
+                    "note": f"Merge or copy this generated config into the {target} host configuration, then restart the host.",
+                }
+            )
+    return steps
+
+
+def _write_install_report(host_root: Path, report: dict[str, Any]) -> Path:
+    path = host_root / "aimipay-install-report.json"
+    payload = dict(report)
+    payload.pop("verify", None)
+    return _write_json(path, payload)
+
+
+def _write_next_steps_markdown(host_root: Path, report: dict[str, Any]) -> Path:
+    path = host_root / "aimipay-install-next-steps.md"
+    lines = [
+        "# AimiPay Agent Host Install",
+        "",
+        f"- ok: {report.get('ok')}",
+        f"- mode: {report.get('mode')}",
+        f"- requested target: {report.get('requested_target')}",
+        f"- install plan: {', '.join(report.get('install_plan') or [])}",
+        "",
+        "## Installed Artifacts",
+    ]
+    for key, value in (report.get("installed") or {}).items():
+        lines.append(f"- {key}: `{value}`")
+    if report.get("generated_host_configs"):
+        lines.extend(["", "## Generated Host Configs"])
+        for key, value in report["generated_host_configs"].items():
+            lines.append(f"- {key}: `{value}`")
+    if report.get("next_steps"):
+        lines.extend(["", "## Next Steps"])
+        for item in report["next_steps"]:
+            lines.append(f"- `{item['target']}`: {item['action']}")
+            if item.get("path"):
+                lines.append(f"  path: `{item['path']}`")
+            if item.get("example"):
+                lines.append(f"  example: `{item['example']}`")
+            if item.get("note"):
+                lines.append(f"  note: {item['note']}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
 
 
 if __name__ == "__main__":

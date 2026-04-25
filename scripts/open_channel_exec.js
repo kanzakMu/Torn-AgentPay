@@ -1,3 +1,5 @@
+const { ethers } = require("ethers");
+
 const { loadArtifact, loadPlan, createTronWeb, TRC20_ABI } = require("./io");
 
 async function main() {
@@ -9,17 +11,18 @@ async function main() {
   const artifact = loadArtifact("AimiMicropayChannel.sol", "AimiMicropayChannel");
   const depositAtomic = String(plan.deposit_atomic);
   const expiresAt = Number(plan.expires_at);
+  const channelSalt = plan.channel_salt || ethers.hexlify(ethers.randomBytes(32));
 
   const tokenContract = await tronWeb.contract(TRC20_ABI, plan.token_address);
   const channelContract = await tronWeb.contract(artifact.abi, plan.contract_address);
 
   const approveTx = await tokenContract.approve(plan.contract_address, depositAtomic).send();
   const initTx = await channelContract
-    .initializeChannel(plan.seller_address, plan.token_address, depositAtomic, expiresAt)
+    .initializeChannel(plan.seller_address, plan.token_address, depositAtomic, expiresAt, channelSalt)
     .send();
 
   const buyerAddress = tronWeb.defaultAddress.base58;
-  const channelId = await channelContract.channelIdOf(buyerAddress, plan.seller_address, plan.token_address).call();
+  const channelId = await channelContract.channelIdOf(buyerAddress, plan.seller_address, plan.token_address, channelSalt).call();
   return {
     approve_tx_id: approveTx,
     open_tx_id: initTx,
@@ -27,6 +30,7 @@ async function main() {
     seller_address: plan.seller_address,
     token_address: plan.token_address,
     channel_id: channelId,
+    channel_salt: channelSalt,
     contract_address: plan.contract_address,
     deposit_atomic: depositAtomic,
     expires_at: expiresAt,

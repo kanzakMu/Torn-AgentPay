@@ -15,6 +15,7 @@ contract AimiMicropayChannel {
         address buyer;
         address seller;
         address token;
+        bytes32 channelSalt;
         uint256 totalDeposit;
         uint64 nonce;
         uint64 expiresAt;
@@ -52,6 +53,7 @@ contract AimiMicropayChannel {
     error InvalidSeller();
     error InvalidToken();
     error InvalidDepositAmount();
+    error InvalidChannelSalt();
     error InvalidClaimAmount();
     error ExpiryMustBeInFuture();
     error ChannelInactive();
@@ -66,8 +68,8 @@ contract AimiMicropayChannel {
     error InvalidCancelSigner();
     error UnauthorizedCaller();
 
-    function channelIdOf(address buyer, address seller, address token) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(buyer, seller, token));
+    function channelIdOf(address buyer, address seller, address token, bytes32 channelSalt) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(buyer, seller, token, channelSalt));
     }
 
     function getVoucherDigest(
@@ -122,7 +124,7 @@ contract AimiMicropayChannel {
         );
     }
 
-    function initializeChannel(address seller, address token, uint256 totalDeposit, uint64 expiresAt)
+    function initializeChannel(address seller, address token, uint256 totalDeposit, uint64 expiresAt, bytes32 channelSalt)
         external
         returns (bytes32 channelId)
     {
@@ -130,8 +132,9 @@ contract AimiMicropayChannel {
         if (token == address(0)) revert InvalidToken();
         if (totalDeposit == 0) revert InvalidDepositAmount();
         if (expiresAt <= block.timestamp) revert ExpiryMustBeInFuture();
+        if (channelSalt == bytes32(0)) revert InvalidChannelSalt();
 
-        channelId = channelIdOf(msg.sender, seller, token);
+        channelId = channelIdOf(msg.sender, seller, token, channelSalt);
         PaymentChannel storage channel = paymentChannels[channelId];
         if (channel.isActive) revert ChannelAlreadyActive();
 
@@ -140,6 +143,7 @@ contract AimiMicropayChannel {
         channel.buyer = msg.sender;
         channel.seller = seller;
         channel.token = token;
+        channel.channelSalt = channelSalt;
         channel.totalDeposit = totalDeposit;
         channel.nonce = 0;
         channel.expiresAt = expiresAt;

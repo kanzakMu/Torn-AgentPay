@@ -160,6 +160,7 @@ class OpenChannelRequest(BaseModel):
     deposit_atomic: int | None = Field(default=None, ge=0)
     ttl_s: int | None = Field(default=None, ge=60)
     route_path: str | None = None
+    channel_salt: str | None = Field(default=None, pattern=r"^0x[0-9a-fA-F]{64}$")
 
 
 class OpenChannelResponse(BaseModel):
@@ -173,6 +174,7 @@ class OpenChannelResponse(BaseModel):
     token_address: str
     deposit_atomic: int
     expires_at: int
+    channel_salt: str
 
 
 class SettlementExecuteRequest(BaseModel):

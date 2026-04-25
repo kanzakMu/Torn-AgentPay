@@ -7,8 +7,10 @@ function main(plan = loadPlan()) {
       buyer: plan.buyer_address,
       seller: plan.seller_address,
       token: plan.token_address,
+      channelSalt: plan.channel_salt,
       fullHost: plan.full_host || process.env.FULL_HOST || "https://nile.trongrid.io",
     }),
+    channel_salt: plan.channel_salt,
   };
 }
 

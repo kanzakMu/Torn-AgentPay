@@ -145,6 +145,11 @@ def install_sellable_capability(
     settlement: GatewaySettlementConfig | None = None,
     settlement_service: object | None = None,
     sqlite_path: str | None = None,
+    admin_token: str | None = None,
+    admin_token_sha256: str | None = None,
+    admin_read_token: str | None = None,
+    admin_read_token_sha256: str | None = None,
+    audit_log_path: str | None = None,
 ) -> SellableCapabilityRuntime:
     gateway = install_gateway(
         app,
@@ -160,6 +165,11 @@ def install_sellable_capability(
             chain_id=chain_id,
             default_deposit_atomic=default_deposit_atomic,
             default_channel_ttl_s=default_channel_ttl_s,
+            admin_token=admin_token,
+            admin_token_sha256=admin_token_sha256,
+            admin_read_token=admin_read_token,
+            admin_read_token_sha256=admin_read_token_sha256,
+            audit_log_path=audit_log_path,
             routes=list(routes or []),
             plans=list(plans or []),
             settlement=settlement,

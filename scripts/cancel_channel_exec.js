@@ -30,6 +30,7 @@ async function main() {
       buyer: buyerAddress,
       seller: sellerAddress,
       token: plan.token_address,
+      channelSalt: plan.channel_salt,
       fullHost,
     });
   const digest = cancelDigest({
@@ -51,6 +52,7 @@ async function main() {
   return {
     tx_id: txId,
     channel_id: channelId,
+    channel_salt: plan.channel_salt,
     buyer_address: buyerAddress,
     seller_address: sellerAddress,
     token_address: plan.token_address,

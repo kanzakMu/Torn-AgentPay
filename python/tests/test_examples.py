@@ -206,6 +206,36 @@ def test_example_merchant_app_returns_runtime_profile_metadata(tmp_path, monkeyp
     assert runtime["resolved_chain_rpc"] == "https://nile.trongrid.io"
     assert runtime["contract_address"] == "TRX_CONTRACT_TEST"
     assert runtime["token_address"] == "TRX_USDT_TEST"
+    assert "admin_token_configured" in runtime
+    assert "audit_log_configured" in runtime
+
+
+def test_example_merchant_app_diagnostics_endpoint_returns_bundle(tmp_path, monkeypatch) -> None:
+    config_path = tmp_path / "merchant-config.json"
+    monkeypatch.setenv("AIMIPAY_MERCHANT_CONFIG_PATH", str(config_path))
+    monkeypatch.setenv("AIMIPAY_PUBLIC_BASE_URL", "http://127.0.0.1:8129")
+
+    app = create_app()
+    client = TestClient(app)
+
+    response = client.get("/aimipay/install/diagnostics")
+
+    assert response.status_code == 200
+    assert response.json()["schema_version"] == "aimipay.diagnostic-bundle.v1"
+
+
+def test_example_merchant_app_agent_status_endpoint_returns_ai_payload(tmp_path, monkeypatch) -> None:
+    config_path = tmp_path / "merchant-config.json"
+    monkeypatch.setenv("AIMIPAY_MERCHANT_CONFIG_PATH", str(config_path))
+    monkeypatch.setenv("AIMIPAY_PUBLIC_BASE_URL", "http://127.0.0.1:8129")
+
+    app = create_app()
+    client = TestClient(app)
+
+    response = client.get("/aimipay/install/agent-status")
+
+    assert response.status_code == 200
+    assert response.json()["schema_version"] == "aimipay.agent-status.v1"
 
 
 def test_example_agent_runtime_builds_runtime() -> None:
@@ -350,12 +380,40 @@ def test_example_buyer_onboarding_app_can_update_merchant_url(tmp_path, monkeypa
         "/aimipay/buyer/onboarding/merchant-url",
         json={"merchant_url": "https://merchant.example"},
     )
+    data = client.get("/aimipay/buyer/onboarding/data")
     page = client.get("/aimipay/buyer/onboarding")
 
     assert response.status_code == 200
     assert response.json()["merchant_urls"] == ["https://merchant.example"]
+    assert data.json()["security"]["local_origin_required"] is True
     assert "Save Merchant URL" in page.text
+    assert "Buyer Onboarding" in page.text
+    assert "Agent install status" in page.text
     assert "refresh-onboarding-button" in page.text
+
+
+def test_example_buyer_onboarding_rejects_nonlocal_origin(tmp_path, monkeypatch) -> None:
+    repo_root = tmp_path / "repo"
+    python_dir = repo_root / "python"
+    (python_dir / ".wallets").mkdir(parents=True)
+    (python_dir / ".agent").mkdir(parents=True)
+    (repo_root / "package.json").write_text("{}", encoding="utf-8")
+    (python_dir / "requirements.txt").write_text("httpx\n", encoding="utf-8")
+    (python_dir / ".env.local.example").write_text("", encoding="utf-8")
+    (python_dir / "target.env").write_text("", encoding="utf-8")
+    (python_dir / ".env.local").write_text("AIMIPAY_BUYER_ADDRESS=TRX_BUYER\n", encoding="utf-8")
+    monkeypatch.setenv("AIMIPAY_REPOSITORY_ROOT", str(repo_root))
+
+    app = create_buyer_onboarding_app()
+    client = TestClient(app)
+
+    response = client.post(
+        "/aimipay/buyer/onboarding/refresh",
+        headers={"Origin": "https://attacker.example"},
+        json={},
+    )
+
+    assert response.status_code == 403
 
 
 def test_example_easy_setup_app_exposes_single_page_install_hub(monkeypatch) -> None:

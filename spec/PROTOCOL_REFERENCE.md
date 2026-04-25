@@ -31,8 +31,9 @@ They can be regenerated from source models with:
 
 ## Channel ID
 
-- Rule: `keccak256(abi.encodePacked(normalized_buyer, normalized_seller, normalized_token))`
+- Rule: `keccak256(abi.encodePacked(normalized_buyer, normalized_seller, normalized_token, channel_salt))`
 - Address inputs must be normalized to EVM hex address form before hashing.
+- `channel_salt` is a 32-byte random value generated for each channel open request and carried through provisioning.
 - External adapters should not re-invent this rule from prose alone; prefer the canonical JS implementation or the runtime protocol endpoint.
 
 ## Request Digest

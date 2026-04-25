@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import time
 from dataclasses import dataclass
 from urllib.parse import urljoin, urlparse
@@ -420,6 +421,7 @@ class BuyerClient:
                 "deposit_atomic": deposit_atomic,
                 "ttl_s": ttl_s,
                 "route_path": route_path,
+                "channel_salt": f"0x{secrets.token_hex(32)}",
             },
         )
         response.raise_for_status()
@@ -433,6 +435,7 @@ class BuyerClient:
                 token_address=open_payload["token_address"],
                 deposit_atomic=int(open_payload["deposit_atomic"]),
                 expires_at=int(open_payload["expires_at"]),
+                channel_salt=open_payload["channel_salt"],
             )
         )
         return _session_payload(route_path=route_path, open_payload=open_payload, provisioning=provisioning)
@@ -573,6 +576,18 @@ class BuyerClient:
     def list_pending_payments(self) -> dict:
         manifest = self.fetch_manifest()
         response = self._http().get(manifest["endpoints"]["list_pending_payments"])
+        response.raise_for_status()
+        return response.json()
+
+    def get_merchant_agent_status(self, *, admin_token: str | None = None) -> dict:
+        manifest = self.fetch_manifest()
+        status_url = manifest["endpoints"].get("agent_status")
+        if status_url is None:
+            status_url = manifest["endpoints"]["management"].rstrip("/") + "/ops/agent-status"
+        headers = {}
+        if admin_token:
+            headers["Authorization"] = f"Bearer {admin_token}"
+        response = self._http().get(status_url, headers=headers)
         response.raise_for_status()
         return response.json()
 
@@ -860,6 +875,7 @@ def _session_payload(*, route_path: str, open_payload: dict, provisioning: OpenC
         "token_address": provisioning.token_address,
         "deposit_atomic": provisioning.deposit_atomic,
         "expires_at": provisioning.expires_at,
+        "channel_salt": provisioning.channel_salt,
         "approve_tx_id": provisioning.approve_tx_id,
         "open_tx_id": provisioning.open_tx_id,
     }

@@ -72,9 +72,13 @@ def test_mcp_server_lists_tools() -> None:
     assert response["id"] == "1"
     tools = response["result"]["tools"]
     assert any(tool["name"] == "aimipay.list_offers" for tool in tools)
+    assert any(tool["name"] == "aimipay.quote_budget" for tool in tools)
+    assert any(tool["name"] == "aimipay.plan_purchase" for tool in tools)
     assert any(tool["name"] == "aimipay.prepare_purchase" for tool in tools)
     assert any(tool["name"] == "aimipay.submit_purchase" for tool in tools)
     assert any(tool["name"] == "aimipay.confirm_purchase" for tool in tools)
+    assert any(tool["name"] == "aimipay.get_merchant_status" for tool in tools)
+    assert any(tool["name"] == "aimipay.get_agent_state" for tool in tools)
     assert any(tool["name"] == "aimipay.recover_payment" for tool in tools)
     assert any(tool["name"] == "aimipay.reconcile_payment" for tool in tools)
     assert any(tool["name"] == "aimipay.finalize_payment" for tool in tools)
@@ -126,9 +130,90 @@ def test_mcp_server_can_call_tools() -> None:
 
     list_payload = list_response["result"]["structuredContent"]
     estimate_payload = estimate_response["result"]["structuredContent"]
-    assert list_payload["next_step"] == "estimate_budget"
+    assert list_payload["schema_version"] == "aimipay.agent-protocol.v1"
+    assert list_payload["kind"] == "capability_catalog"
+    assert list_payload["next_step"] == "quote_budget"
     assert len(list_payload["offers"]) == 1
+    assert estimate_payload["schema_version"] == "aimipay.agent-protocol.v1"
+    assert estimate_payload["kind"] == "budget_quote"
     assert estimate_payload["estimated_cost_atomic"] == 750_000
+    assert estimate_payload["auto_decision"]["action"] == "buy_now"
+
+
+def test_mcp_server_returns_ai_protocol_budget_plan_and_state() -> None:
+    server = AimiPayMcpServer(_build_runtime())
+
+    quote_response = server.handle_request(
+        {
+            "id": "quote",
+            "method": "tools/call",
+            "params": {
+                "name": "aimipay.quote_budget",
+                "arguments": {
+                    "capability_id": "research-web-search",
+                    "expected_units": 2,
+                    "budget_limit_atomic": 600_000,
+                },
+            },
+        }
+    )
+    plan_response = server.handle_request(
+        {
+            "id": "plan",
+            "method": "tools/call",
+            "params": {
+                "name": "aimipay.plan_purchase",
+                "arguments": {
+                    "capability_type": "web_search",
+                    "expected_units": 2,
+                    "budget_limit_atomic": 600_000,
+                },
+            },
+        }
+    )
+    state_response = server.handle_request(
+        {
+            "id": "state",
+            "method": "tools/call",
+            "params": {
+                "name": "aimipay.get_agent_state",
+                "arguments": {},
+            },
+        }
+    )
+
+    quote = quote_response["result"]["structuredContent"]
+    plan = plan_response["result"]["structuredContent"]
+    state = state_response["result"]["structuredContent"]
+    assert quote["kind"] == "budget_quote"
+    assert quote["auto_decision"]["allowed"] is True
+    assert quote["next_actions"][0]["action"] == "prepare_purchase"
+    assert plan["kind"] == "purchase_plan"
+    assert plan["selection"]["selected"]["offer"]["capability_id"] == "research-web-search"
+    assert state["kind"] == "agent_state"
+    assert state["capability_catalog"]["count"] == 1
+
+
+def test_mcp_server_can_return_merchant_status() -> None:
+    server = AimiPayMcpServer(_build_runtime())
+
+    response = server.handle_request(
+        {
+            "id": "merchant-status",
+            "method": "tools/call",
+            "params": {
+                "name": "aimipay.get_merchant_status",
+                "arguments": {},
+            },
+        }
+    )
+
+    payload = response["result"]["structuredContent"]
+    assert response["result"]["isError"] is False
+    assert payload["schema_version"] == "aimipay.agent-status.v1"
+    assert payload["service"]["name"] == "Research Copilot"
+    assert payload["capabilities"]["routes"][0]["capability_id"] == "research-web-search"
+    assert payload["next_step"] in {"ready_to_purchase", "review_merchant_readiness"}
 
 
 def test_mcp_server_can_call_wallet_funding_tool(tmp_path) -> None:

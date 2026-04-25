@@ -52,19 +52,26 @@ class RuntimeMetrics:
 @dataclass(slots=True)
 class StructuredEventLogger:
     logger_name: str = "aimipay.runtime"
+    audit_log_path: str | None = None
 
     def emit(self, event: str, **payload: Any) -> None:
+        record = {
+            "event": event,
+            "ts": int(time.time()),
+            **_redact_payload(payload),
+        }
         logging.getLogger(self.logger_name).info(
             json.dumps(
-                {
-                    "event": event,
-                    "ts": int(time.time()),
-                    **payload,
-                },
+                record,
                 ensure_ascii=True,
                 sort_keys=True,
             )
         )
+        if self.audit_log_path:
+            path = Path(self.audit_log_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(record, ensure_ascii=True, sort_keys=True) + "\n")
 
 
 def validate_runtime_config(config: object) -> dict[str, Any]:
@@ -88,6 +95,25 @@ def validate_runtime_config(config: object) -> dict[str, Any]:
                 "detail": "sqlite_path is not configured; runtime uses in-memory storage",
             }
         )
+    checks.append(
+        {
+            "name": "admin_token_configured",
+            "ok": True,
+            "detail": "admin token configured" if (
+                getattr(config, "admin_token", None)
+                or getattr(config, "admin_token_sha256", None)
+                or getattr(config, "admin_read_token", None)
+                or getattr(config, "admin_read_token_sha256", None)
+            ) else "admin token not configured; admin routes require localhost",
+        }
+    )
+    checks.append(
+        {
+            "name": "audit_log_configured",
+            "ok": True,
+            "detail": str(getattr(config, "audit_log_path", "") or "audit log path not configured"),
+        }
+    )
     if settlement is None:
         checks.append(
             {
@@ -186,6 +212,17 @@ def _prometheus_name(namespace: str, key: str) -> str:
     if normalized and normalized[0].isdigit():
         normalized = f"metric_{normalized}"
     return f"{namespace}_{normalized}"
+
+
+def _redact_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    redacted: dict[str, Any] = {}
+    for key, value in payload.items():
+        lowered = key.lower()
+        if any(marker in lowered for marker in ("private_key", "secret", "signature", "token")):
+            redacted[key] = "<redacted>"
+        else:
+            redacted[key] = value
+    return redacted
 
 
 def _build_recommendations(*, unfinished: int, retry_exhausted: int, worker_errors: int) -> list[str]:

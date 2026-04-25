@@ -5,6 +5,7 @@
   var publicConfigUrl = "/aimipay/assets/website/.generated/merchant.public.json";
   var installConfigUrl = "/aimipay/install/config";
   var installHistoryUrl = "/aimipay/install/config/history";
+  var diagnosticsUrl = "/aimipay/install/diagnostics";
   var historyDiffBaseUrl = "/aimipay/install/config/history/";
 
   function safeJson(url) {
@@ -60,6 +61,30 @@
     };
     var tuple = colors[tone] || colors.neutral;
     return "<span style='display:inline-block;padding:6px 10px;border-radius:999px;background:" + tuple[0] + ";color:" + tuple[1] + ";font-weight:700;'>" + label + "</span>";
+  }
+
+  function confirmHighRisk(title, message) {
+    var modal = document.getElementById("confirm-modal");
+    var titleNode = document.getElementById("confirm-modal-title");
+    var messageNode = document.getElementById("confirm-modal-message");
+    var cancel = document.getElementById("confirm-modal-cancel");
+    var accept = document.getElementById("confirm-modal-accept");
+    if (!modal || !titleNode || !messageNode || !cancel || !accept) {
+      return Promise.resolve(window.confirm(title));
+    }
+    return new Promise(function (resolve) {
+      titleNode.textContent = title;
+      messageNode.textContent = message;
+      modal.style.display = "flex";
+      cancel.onclick = function () {
+        modal.style.display = "none";
+        resolve(false);
+      };
+      accept.onclick = function () {
+        modal.style.display = "none";
+        resolve(true);
+      };
+    });
   }
 
   function money(value) {
@@ -121,7 +146,10 @@
         ["Resolved RPC", runtime.resolved_chain_rpc || "n/a"],
         ["Contract", runtime.contract_address || "n/a"],
         ["Token", runtime.token_address || "n/a"],
-        ["Seller", runtime.seller_address || "n/a"]
+        ["Seller", runtime.seller_address || "n/a"],
+        ["Admin Token", runtime.admin_token_configured ? "configured" : "local only"],
+        ["Audit Log", runtime.audit_log_configured ? "configured" : "not configured"],
+        ["Mode", runtime.production_mode ? "production" : "demo/test"]
       ].map(function (item) {
         return "<div style='padding:14px 16px;border-radius:16px;background:#f8fafc;border:1px solid #e2e8f0;'>" +
           "<div style='font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:#0f766e;'>" + escapeHtml(item[0]) + "</div>" +
@@ -144,6 +172,42 @@
       "<div style='margin-top:8px;display:grid;gap:6px;color:#475569;line-height:1.6;'>" +
       lines.map(function (line) { return "<div>" + escapeHtml(line) + "</div>"; }).join("") +
       "</div></div>";
+  }
+
+  function readinessPanel(runtime, health, manifest) {
+    var chain = manifest && manifest.primary_chain ? manifest.primary_chain : {};
+    var rows = [
+      ["Admin token", runtime && runtime.admin_token_configured, "Protects admin routes outside localhost"],
+      ["Audit log", runtime && runtime.audit_log_configured, "Records high-risk operator actions"],
+      ["Storage", health && health.storage_backend === "sqlite", "Persistent payment storage"],
+      ["Public URL", runtime && runtime.public_base_url && runtime.public_base_url.indexOf("localhost") === -1 && runtime.public_base_url.indexOf("127.0.0.1") === -1, runtime ? runtime.public_base_url : "n/a"],
+      ["Contract", chain.contract_address && chain.contract_address !== "TRX_CONTRACT", chain.contract_address || "n/a"],
+      ["Token", chain.asset_address && chain.asset_address !== "TRX_USDT", chain.asset_address || "n/a"]
+    ];
+    return rows.map(function (row) {
+      return "<div style='display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0;'>" +
+        "<div><strong>" + escapeHtml(row[0]) + "</strong><br><span style='color:#64748b;'>" + escapeHtml(row[2]) + "</span></div>" +
+        statusBadge(row[1] ? "ready" : "review", row[1] ? "good" : "warn") +
+        "</div>";
+    }).join("");
+  }
+
+  function paymentLifecyclePanel(payments) {
+    var latest = payments && payments.length ? payments[0] : null;
+    if (!latest) {
+      return "<div style='padding:14px 16px;border-radius:16px;background:#f8fafc;border:1px solid #e2e8f0;'>No pending payments. Runtime is clear.</div>";
+    }
+    var status = latest.status || "authorized";
+    function step(label, done) {
+      return "<div style='display:grid;grid-template-columns:22px 1fr;gap:10px;align-items:start;'><div style='width:16px;height:16px;border-radius:999px;margin-top:3px;background:" + (done ? "#0f766e" : "#cbd5e1") + ";'></div><div style='padding-bottom:9px;border-bottom:1px solid #e2e8f0;'><strong>" + escapeHtml(label) + "</strong></div></div>";
+    }
+    return "<div style='padding:14px 16px;border-radius:16px;background:#f8fafc;border:1px solid #e2e8f0;'>" +
+      "<div style='font-weight:700;color:#0f172a;margin-bottom:10px;'>Latest payment: " + escapeHtml(latest.payment_id) + "</div>" +
+      step("Intent authorized", ["authorized", "submitted", "settled", "failed", "expired"].indexOf(status) >= 0) +
+      step("Settlement submitted", ["submitted", "settled", "failed"].indexOf(status) >= 0) +
+      step("Terminal status", ["settled", "failed", "expired"].indexOf(status) >= 0) +
+      "<div style='margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;'>" + statusBadge("status: " + status, status === "failed" ? "bad" : "neutral") + statusBadge("next: " + (latest.next_step || "none"), "neutral") + "</div>" +
+      "</div>";
   }
 
   function summarizeDiff(diff) {
@@ -360,6 +424,9 @@
           return item.path === decodeURIComponent(button.getAttribute("data-delete-route")) &&
             (item.method || "POST") === decodeURIComponent(button.getAttribute("data-delete-method") || "POST");
         });
+        if (!(await confirmHighRisk("Delete route", "This removes the route from seller settings and manifest discovery."))) {
+          return;
+        }
         await fetch("/aimipay/install/config/route", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
@@ -386,6 +453,9 @@
           return item.path === decodeURIComponent(button.getAttribute("data-toggle-route")) &&
             (item.method || "POST") === decodeURIComponent(button.getAttribute("data-toggle-method") || "POST");
         });
+        if (!(await confirmHighRisk(currentlyEnabled ? "Pause route" : "Enable route", "This changes whether buyers can discover this paid route."))) {
+          return;
+        }
         await postJson("/aimipay/install/config/route/toggle", {
           path: decodeURIComponent(button.getAttribute("data-toggle-route")),
           method: decodeURIComponent(button.getAttribute("data-toggle-method") || "POST"),
@@ -433,6 +503,9 @@
         var plan = (config.plans || []).find(function (item) {
           return item.plan_id === decodeURIComponent(button.getAttribute("data-delete-plan"));
         });
+        if (!(await confirmHighRisk("Delete plan", "This removes the plan from seller settings and manifest discovery."))) {
+          return;
+        }
         await fetch("/aimipay/install/config/plan/" + encodeURIComponent(decodeURIComponent(button.getAttribute("data-delete-plan"))), {
           method: "DELETE"
         });
@@ -453,6 +526,9 @@
         var plan = (config.plans || []).find(function (item) {
           return item.plan_id === decodeURIComponent(button.getAttribute("data-toggle-plan"));
         });
+        if (!(await confirmHighRisk(currentlyEnabled ? "Pause plan" : "Enable plan", "This changes whether buyers can discover this paid plan."))) {
+          return;
+        }
         await postJson("/aimipay/install/config/plan/" + encodeURIComponent(decodeURIComponent(button.getAttribute("data-toggle-plan"))) + "/toggle", {
           enabled: !currentlyEnabled
         });
@@ -478,6 +554,9 @@
       button.onclick = async function () {
         var revision = button.getAttribute("data-rollback-revision");
         var diffPayload = await safeJson(historyDiffBaseUrl + revision + "/diff");
+        if (!(await confirmHighRisk("Rollback seller settings", "This replaces current seller settings with revision " + revision + "."))) {
+          return;
+        }
         await postJson("/aimipay/install/config/rollback/" + revision, {});
         showOperationBanner(
           "Rollback Applied",
@@ -611,7 +690,8 @@
       safeJson(healthUrl),
       safeJson(publicConfigUrl),
       safeJson(installConfigUrl),
-      safeJson(installHistoryUrl)
+      safeJson(installHistoryUrl),
+      safeJson(diagnosticsUrl)
     ]);
 
     var manifest = results[0].status === "fulfilled" ? results[0].value : null;
@@ -620,6 +700,7 @@
     var publicConfig = results[3].status === "fulfilled" ? results[3].value : null;
     var installConfig = results[4].status === "fulfilled" ? results[4].value : null;
     var history = results[5].status === "fulfilled" ? results[5].value : { versions: [] };
+    var diagnostics = results[6].status === "fulfilled" ? results[6].value : null;
     var brand = publicConfig && publicConfig.brand ? publicConfig.brand : {};
     var runtimeProfile = installConfig && installConfig.runtime ? installConfig.runtime : null;
 
@@ -630,16 +711,17 @@
     summary.push(cardChip("Embed", "website starter ready", "neutral"));
     setHtml("hero-summary", summary.join(""));
 
+    var healthChecks = health ? (health.checks || health.config_checks || []) : [];
     setHtml(
       "health-status",
       health
-        ? "<strong>" + (health.ok ? "Healthy" : "Needs review") + "</strong><br>Checks: " + ((health.config_checks || []).length) + "<br>Metrics keys: " + Object.keys(health.metrics || {}).length
+        ? "<strong>" + (health.ok ? "Healthy" : "Needs review") + "</strong><br>Checks: " + healthChecks.length + "<br>Metrics keys: " + Object.keys(health.metrics || {}).length
         : "Health endpoint unavailable."
     );
     setHtml(
       "health-diagnostics",
-      health && (health.config_checks || []).length
-        ? health.config_checks.slice(0, 6).map(function (item) {
+      healthChecks.length
+        ? healthChecks.slice(0, 6).map(function (item) {
             return "<div style='display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0;'>" +
               "<div><strong>" + item.name + "</strong><br><span style='color:#64748b;'>" + (item.detail || "") + "</span></div>" +
               statusBadge(item.ok ? "ok" : "review", item.ok ? "good" : "warn") +
@@ -687,6 +769,25 @@
         ? runtimeProfileCard(runtimeProfile)
         : "<div style='color:#64748b;'>Runtime profile unavailable.</div>"
     );
+    setHtml("readiness-panel", readinessPanel(runtimeProfile, health, manifest));
+    setHtml("payment-lifecycle-panel", paymentLifecyclePanel(diagnostics && diagnostics.payments ? diagnostics.payments.pending : []));
+    var diagnosticsButton = document.getElementById("diagnostics-export-button");
+    if (diagnosticsButton) {
+      diagnosticsButton.onclick = async function () {
+        var payload = diagnostics || await safeJson(diagnosticsUrl);
+        var text = JSON.stringify(payload, null, 2);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          showOperationBanner("Diagnostics Copied", "A redacted diagnostics bundle was copied to the clipboard.", {});
+        } else {
+          var preview = document.getElementById("route-draft-preview");
+          if (preview) {
+            preview.textContent = text;
+          }
+          showOperationBanner("Diagnostics Ready", "Diagnostics were rendered into the route preview panel.", {});
+        }
+      };
+    }
 
     var nextStep = "";
     if (!health || !health.ok) {
@@ -747,11 +848,11 @@
     var snippet =
       "<div\\n" +
       "  data-aimipay-checkout\\n" +
-      "  data-merchant-base-url=\\"" + merchantBaseUrl + "\\"\\n" +
-      "  data-title=\\"Pay with AimiPay\\"\\n" +
-      "  data-description=\\"Turn your website or SaaS tool into an agent-native paid capability.\\"\\n" +
-      "  data-accent-color=\\"" + (brand.accent_color || "#0f766e") + "\\"></div>\\n\\n" +
-      "<script src=\\"" + merchantBaseUrl + "/aimipay/assets/website/aimipay.checkout.js\\"><\\/script>";
+      '  data-merchant-base-url="' + merchantBaseUrl + '"\\n' +
+      '  data-title="Pay with AimiPay"\\n' +
+      '  data-description="Turn your website or SaaS tool into an agent-native paid capability."\\n' +
+      '  data-accent-color="' + (brand.accent_color || "#0f766e") + '"></div>\\n\\n' +
+      '<script src="' + merchantBaseUrl + '/aimipay/assets/website/aimipay.checkout.js"><\\/script>';
     var snippetNode = document.getElementById("embed-snippet");
     if (snippetNode) {
       snippetNode.textContent = snippet;

@@ -30,6 +30,7 @@ async function main() {
       buyer: buyerAddress,
       seller: sellerAddress,
       token: plan.token_address,
+      channelSalt: plan.channel_salt,
       fullHost,
     });
   const requestDeadline = Number(plan.request_deadline);

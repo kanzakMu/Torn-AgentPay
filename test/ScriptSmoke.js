@@ -29,6 +29,7 @@ describe("script smoke tests", function () {
       contract_address: "TRX_CONTRACT",
       deposit_atomic: 1_000_000,
       expires_at: 1_700_000_100,
+      channel_salt: "0x" + "11".repeat(32),
     };
 
     const restoreIo = patchExports(require.resolve("../scripts/io"), {
@@ -49,20 +50,22 @@ describe("script smoke tests", function () {
             };
           }
           return {
-            initializeChannel: (seller, token, amount, expiresAt) => ({
+            initializeChannel: (seller, token, amount, expiresAt, channelSalt) => ({
               send: async () => {
                 expect(seller).to.equal(plan.seller_address);
                 expect(token).to.equal(plan.token_address);
                 expect(amount).to.equal(String(plan.deposit_atomic));
                 expect(expiresAt).to.equal(plan.expires_at);
+                expect(channelSalt).to.equal(plan.channel_salt);
                 return "open_tx_1";
               },
             }),
-            channelIdOf: (buyer, seller, token) => ({
+            channelIdOf: (buyer, seller, token, channelSalt) => ({
               call: async () => {
                 expect(buyer).to.equal("TRX_BUYER");
                 expect(seller).to.equal(plan.seller_address);
                 expect(token).to.equal(plan.token_address);
+                expect(channelSalt).to.equal(plan.channel_salt);
                 return "channel_1";
               },
             }),
@@ -81,6 +84,7 @@ describe("script smoke tests", function () {
         seller_address: "TRX_SELLER",
         token_address: "TRX_USDT",
         channel_id: "channel_1",
+        channel_salt: plan.channel_salt,
         contract_address: "TRX_CONTRACT",
         deposit_atomic: "1000000",
         expires_at: 1_700_000_100,

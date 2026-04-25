@@ -21,6 +21,8 @@ from seller.gateway import GatewayConfig, GatewaySettlementConfig, install_gatew
 from shared import CapabilityBudgetHint, MerchantRoute
 from shared.protocol_native import channel_id_of
 
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+
 
 def _build_gateway_app(
     *,
@@ -72,7 +74,7 @@ def _build_gateway_app(
 
 
 def test_default_tron_provisioner_points_to_open_script() -> None:
-    provisioner = build_default_tron_provisioner(repository_root="e:/trade/aimicropay-tron")
+    provisioner = build_default_tron_provisioner(repository_root=REPOSITORY_ROOT)
     assert provisioner.command == ("node", "scripts/open_channel_exec.js")
     assert provisioner.cwd.endswith("aimicropay-tron")
 
@@ -97,7 +99,7 @@ def test_tron_provisioner_executes_command_and_parses_json() -> None:
                 "}))"
             ),
         ),
-        cwd="e:/trade/aimicropay-tron",
+        cwd=str(REPOSITORY_ROOT),
     )
     result = provisioner.provision(
         plan=type(
@@ -760,10 +762,15 @@ def test_agent_adapter_returns_agent_friendly_lifecycle_shape() -> None:
     offers = adapter.list_offers()
     estimate = adapter.estimate_budget(capability_id="research-web-search")
 
-    assert offers["next_step"] == "estimate_budget"
+    assert offers["schema_version"] == "aimipay.agent-protocol.v1"
+    assert offers["kind"] == "capability_catalog"
+    assert offers["next_step"] == "quote_budget"
     assert len(offers["offers"]) == 1
+    assert estimate["schema_version"] == "aimipay.agent-protocol.v1"
+    assert estimate["kind"] == "budget_quote"
     assert estimate["estimated_cost_atomic"] == 750_000
-    assert estimate["next_step"] == "prepare_or_open_channel"
+    assert estimate["auto_decision"]["action"] == "buy_now"
+    assert estimate["next_step"] == "prepare_purchase"
 
 
 def test_buyer_client_estimates_capability_budget_from_budget_hint() -> None:

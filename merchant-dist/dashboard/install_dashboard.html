@@ -63,6 +63,20 @@
       <div id="runtime-profile" style="display:grid;gap:12px;color:#475569;">Loading runtime profile...</div>
     </section>
 
+    <section style="margin-top:28px;display:grid;gap:18px;grid-template-columns:1fr 1fr;">
+      <div style="padding:24px;border-radius:24px;background:#ffffff;border:1px solid #e2e8f0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <h2 style="margin:0;font-size:28px;">Production readiness</h2>
+          <button id="diagnostics-export-button" type="button" style="border:none;border-radius:999px;background:#111827;color:#ecfeff;padding:10px 14px;font-weight:700;cursor:pointer;">Export diagnostics</button>
+        </div>
+        <div id="readiness-panel" style="margin-top:16px;display:grid;gap:10px;color:#475569;">Loading readiness checks...</div>
+      </div>
+      <div style="padding:24px;border-radius:24px;background:#ffffff;border:1px solid #e2e8f0;">
+        <h2 style="margin:0 0 14px;font-size:28px;">Payment lifecycle</h2>
+        <div id="payment-lifecycle-panel" style="display:grid;gap:12px;color:#475569;">Loading payment state...</div>
+      </div>
+    </section>
+
     <section style="margin-top:28px;padding:24px;border-radius:24px;background:#ffffff;border:1px solid #e2e8f0;">
         <h2 style="margin:0 0 14px;font-size:28px;">Seller links</h2>
       <div id="merchant-links" style="display:grid;gap:12px;"></div>
@@ -223,6 +237,19 @@
       </div>
     </section>
   </main>
+
+  <div id="confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:50;align-items:center;justify-content:center;padding:24px;">
+    <div style="width:min(560px,100%);background:#ffffff;border-radius:20px;border:1px solid #e2e8f0;box-shadow:0 30px 90px rgba(15,23,42,0.35);padding:24px;">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:#991b1b;">Confirm high-risk action</div>
+      <h2 id="confirm-modal-title" style="margin:10px 0 8px;font-size:26px;">Confirm action</h2>
+      <p id="confirm-modal-message" style="margin:0;color:#475569;line-height:1.7;"></p>
+      <div id="confirm-modal-details" style="margin-top:14px;display:grid;gap:8px;"></div>
+      <div style="margin-top:18px;display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;">
+        <button id="confirm-modal-cancel" type="button" style="border:1px solid #cbd5e1;border-radius:999px;background:#fff;color:#0f172a;padding:10px 14px;font-weight:700;cursor:pointer;">Cancel</button>
+        <button id="confirm-modal-accept" type="button" style="border:none;border-radius:999px;background:#991b1b;color:#fee2e2;padding:10px 14px;font-weight:700;cursor:pointer;">Confirm</button>
+      </div>
+    </div>
+  </div>
 
   <script src="/aimipay/assets/dashboard/install_dashboard.js"></script>
 </body>

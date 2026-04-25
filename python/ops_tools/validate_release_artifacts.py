@@ -25,16 +25,65 @@ REQUIRED_PATHS = [
     "conformance-fixtures/purchase.json",
 ]
 
+FORBIDDEN_PATH_PARTS = {
+    ".venv",
+    "venv",
+    ".vendor",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".dry-run",
+    ".docker-local",
+    ".agent",
+    ".wallets",
+    ".merchant-config.history",
+}
+
+FORBIDDEN_FILE_NAMES = {
+    ".env.local",
+    ".env.merchant.local",
+    ".merchant-config.json",
+    "target.env",
+    "target.nile.env",
+}
+
+FORBIDDEN_SUFFIXES = {
+    ".db",
+    ".sqlite",
+    ".sqlite3",
+    ".pyc",
+    ".pyo",
+    ".log",
+}
+
 
 def validate_release_artifacts(*, dist_dir: str | Path) -> dict[str, object]:
     root = Path(dist_dir).resolve()
     missing = [relative for relative in REQUIRED_PATHS if not (root / relative).exists()]
+    forbidden = _find_forbidden_paths(root)
     return {
-        "ok": not missing,
+        "ok": not missing and not forbidden,
         "dist_dir": str(root),
         "missing": missing,
+        "forbidden": forbidden,
         "required_paths": REQUIRED_PATHS,
     }
+
+
+def _find_forbidden_paths(root: Path) -> list[str]:
+    if not root.exists():
+        return []
+    forbidden: list[str] = []
+    for path in root.rglob("*"):
+        relative = path.relative_to(root)
+        parts = set(relative.parts)
+        if parts & FORBIDDEN_PATH_PARTS:
+            forbidden.append(str(relative))
+            continue
+        if path.is_file() and (path.name in FORBIDDEN_FILE_NAMES or path.suffix.lower() in FORBIDDEN_SUFFIXES):
+            forbidden.append(str(relative))
+    return sorted(forbidden)
 
 
 def main(argv: list[str] | None = None) -> int:

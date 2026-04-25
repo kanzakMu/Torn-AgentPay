@@ -1,4 +1,5 @@
 import os
+import hashlib
 from pathlib import Path
 import time
 
@@ -127,6 +128,8 @@ def test_protocol_reference_exposes_single_source_rules() -> None:
     assert payload["protocol_version"] == "aimipay-tron-v1"
     assert payload["channel_id"]["single_source"] == "scripts/protocol.js::channelIdOf"
     assert "request_deadline" in payload["time_fields"]
+    assert payload["agent_facing_protocol"]["schema_version"] == "aimipay.agent-protocol.v1"
+    assert payload["agent_facing_protocol"]["tool_mapping"]["state"] == "aimipay.get_agent_state"
 
 
 def test_discover_and_open_channel_return_tron_defaults() -> None:
@@ -156,6 +159,8 @@ def test_discover_and_open_channel_return_tron_defaults() -> None:
     assert payload["deposit_atomic"] == 1_000_000
     assert payload["channel_id_source"] == "chain_derived"
     assert payload["channel_id"].startswith("0x")
+    assert payload["channel_salt"].startswith("0x")
+    assert len(payload["channel_salt"]) == 66
 
 
 def test_payment_status_returns_recorded_payment() -> None:
@@ -326,6 +331,141 @@ def test_ops_payment_action_can_record_manual_compensation() -> None:
     assert payload["status"] == "failed"
     assert payload["error_code"] == "manual_compensation_recorded"
     assert payload["error_message"] == "refunded through support workflow"
+
+
+def test_ops_endpoints_require_admin_token_when_configured() -> None:
+    app = FastAPI()
+    install_gateway(
+        app,
+        GatewayConfig(
+            service_name="Research Copilot",
+            service_description="Pay-per-use research and market data",
+            seller_address="TRX_SELLER",
+            contract_address="TRX_CONTRACT",
+            token_address="TRX_USDT",
+            admin_token="secret-admin-token",
+        ),
+    )
+    client = TestClient(app)
+
+    denied = client.get("/_aimipay/ops/health")
+    allowed = client.get("/_aimipay/ops/health", headers={"X-AimiPay-Admin-Token": "secret-admin-token"})
+
+    assert denied.status_code == 401
+    assert allowed.status_code == 200
+
+
+def test_ops_endpoints_accept_hashed_admin_token_and_write_audit_log(tmp_path) -> None:
+    app = FastAPI()
+    audit_log = tmp_path / "audit.jsonl"
+    token = "hashed-admin-token-123"
+    runtime = install_gateway(
+        app,
+        GatewayConfig(
+            service_name="Research Copilot",
+            service_description="Pay-per-use research and market data",
+            seller_address="TRX_SELLER",
+            contract_address="TRX_CONTRACT",
+            token_address="TRX_USDT",
+            admin_token_sha256=hashlib.sha256(token.encode("utf-8")).hexdigest(),
+            audit_log_path=str(audit_log),
+        ),
+    )
+    runtime.record_payment(
+        PaymentRecord(
+            payment_id="pay_audit_1",
+            route_path="/tools/research",
+            amount_atomic=250_000,
+            status="submitted",
+            tx_id="trx_audit_1",
+        )
+    )
+    client = TestClient(app)
+
+    response = client.post(
+        "/_aimipay/ops/payments/pay_audit_1/action",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"action": "mark_failed", "note": "operator rejected"},
+    )
+
+    assert response.status_code == 200
+    assert audit_log.exists()
+    assert "admin_payment_action_requested" in audit_log.read_text(encoding="utf-8")
+
+
+def test_ops_diagnostics_returns_redacted_bundle() -> None:
+    app = FastAPI()
+    runtime = install_gateway(
+        app,
+        GatewayConfig(
+            service_name="Research Copilot",
+            service_description="Pay-per-use research and market data",
+            seller_address="TRX_SELLER",
+            contract_address="TRX_CONTRACT",
+            token_address="TRX_USDT",
+        ),
+    )
+    runtime.record_payment(
+        PaymentRecord(
+            payment_id="pay_diag_1",
+            route_path="/tools/research",
+            amount_atomic=250_000,
+            status="authorized",
+        )
+    )
+    client = TestClient(app)
+
+    response = client.get("/_aimipay/ops/diagnostics")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["schema_version"] == "aimipay.diagnostic-bundle.v1"
+    assert payload["payments"]["pending_count"] == 1
+    assert payload["redaction"]["private_keys"] == "redacted"
+
+
+def test_ops_agent_status_returns_ai_readable_summary() -> None:
+    app = FastAPI()
+    runtime = install_gateway(
+        app,
+        GatewayConfig(
+            service_name="Research Copilot",
+            service_description="Pay-per-use research and market data",
+            seller_address="TRX_SELLER",
+            contract_address="TRX_CONTRACT",
+            token_address="TRX_USDT",
+            routes=[
+                MerchantRoute(
+                    path="/tools/research",
+                    method="POST",
+                    price_atomic=250_000,
+                    capability_id="research-web-search",
+                    capability_type="web_search",
+                )
+            ],
+        ),
+    )
+    runtime.record_payment(
+        PaymentRecord(
+            payment_id="pay_agent_status_1",
+            route_path="/tools/research",
+            amount_atomic=250_000,
+            status="authorized",
+        )
+    )
+    client = TestClient(app)
+
+    response = client.get("/_aimipay/ops/agent-status")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["schema_version"] == "aimipay.agent-status.v1"
+    assert payload["service"]["name"] == "Research Copilot"
+    assert payload["capabilities"]["routes"][0]["capability_id"] == "research-web-search"
+    assert payload["payments"]["unfinished_count"] == 1
+    assert payload["payments"]["status_counts"]["authorized"] == 1
+    actions = {item["action"] for item in payload["next_actions"]}
+    assert "recover_or_finalize_pending_payments" in actions
 
 
 def test_ops_payment_action_can_mark_manual_settlement() -> None:

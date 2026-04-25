@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+import secrets
+import hashlib
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request, Response, status
 from .settlement import TronSettlementServiceConfig, build_default_tron_settlement_service
@@ -68,6 +70,11 @@ class GatewayConfig:
     chain_id: int | None = None
     default_deposit_atomic: int = 1_000_000
     default_channel_ttl_s: int = 3600
+    admin_token: str | None = None
+    admin_token_sha256: str | None = None
+    admin_read_token: str | None = None
+    admin_read_token_sha256: str | None = None
+    audit_log_path: str | None = None
     routes: list[MerchantRoute] = field(default_factory=list)
     plans: list[MerchantPlan] = field(default_factory=list)
     management_prefix: str = "/_aimipay"
@@ -102,7 +109,7 @@ class GatewayRuntime:
         self.payment_store = payment_store or InMemoryPaymentStore()
         self.settlement_service = settlement_service
         self.metrics = RuntimeMetrics()
-        self.event_logger = StructuredEventLogger()
+        self.event_logger = StructuredEventLogger(audit_log_path=config.audit_log_path)
         if self.settlement_service is not None:
             if hasattr(self.settlement_service, "metrics"):
                 self.settlement_service.metrics = self.metrics
@@ -145,6 +152,7 @@ class GatewayRuntime:
             "list_pending_payments_url": manifest["endpoints"]["list_pending_payments"],
             "payment_status_template": manifest["endpoints"]["payment_status_template"],
             "ops_health_url": manifest["endpoints"]["ops_health"],
+            "agent_status_url": manifest["endpoints"]["agent_status"],
             "ops_payment_action_template": manifest["endpoints"]["ops_payment_action_template"],
         }
 
@@ -155,6 +163,7 @@ class GatewayRuntime:
         deposit_atomic = request.deposit_atomic or self.config.default_deposit_atomic
         ttl_s = request.ttl_s or self.config.default_channel_ttl_s
         expires_at = int(time.time()) + ttl_s
+        channel_salt = request.channel_salt or f"0x{secrets.token_hex(32)}"
         channel_id = None
         channel_id_source = "unavailable"
         try:
@@ -162,6 +171,7 @@ class GatewayRuntime:
                 buyer_address=request.buyer_address,
                 seller_address=self.config.seller_address,
                 token_address=self.config.token_address,
+                channel_salt=channel_salt,
             )
             channel_id_source = "chain_derived"
         except Exception:
@@ -185,6 +195,7 @@ class GatewayRuntime:
             token_address=self.config.token_address,
             deposit_atomic=deposit_atomic,
             expires_at=expires_at,
+            channel_salt=channel_salt,
         )
 
     def record_payment(self, record: PaymentRecord) -> PaymentRecord:
@@ -345,6 +356,120 @@ class GatewayRuntime:
         export += f'aimipay_runtime_ok {1 if checks["ok"] else 0}\n'
         export += f'aimipay_runtime_health{{level="{summary["health"]}"}} 1\n'
         return export
+
+    def diagnostic_bundle(self) -> dict:
+        health = self.health_report()
+        pending = self.list_pending_payments()
+        return {
+            "schema_version": "aimipay.diagnostic-bundle.v1",
+            "generated_at": int(time.time()),
+            "health": health,
+            "security": {
+                "admin_token_configured": bool(
+                    self.config.admin_token
+                    or self.config.admin_token_sha256
+                    or self.config.admin_read_token
+                    or self.config.admin_read_token_sha256
+                ),
+                "audit_log_configured": bool(self.config.audit_log_path),
+                "storage_backend": "sqlite" if self.config.sqlite_path else "memory",
+            },
+            "payments": {
+                "pending_count": len(pending),
+                "pending": [self.serialize_payment(record) for record in pending[:50]],
+            },
+            "redaction": {
+                "private_keys": "redacted",
+                "admin_tokens": "redacted",
+                "signatures": "redacted",
+            },
+        }
+
+    def agent_status(self) -> dict:
+        health = self.health_report()
+        pending = self.list_pending_payments()
+        checks = list(health.get("checks") or [])
+        blockers = [
+            {
+                "name": item.get("name"),
+                "detail": item.get("detail"),
+            }
+            for item in checks
+            if item.get("level") in {"error", "critical"} or item.get("ok") is False
+        ]
+        warnings = [
+            {
+                "name": item.get("name"),
+                "detail": item.get("detail"),
+            }
+            for item in checks
+            if item.get("level") == "warning"
+        ]
+        status_counts: dict[str, int] = {}
+        for record in pending:
+            status_name = record.status or "unknown"
+            status_counts[status_name] = status_counts.get(status_name, 0) + 1
+        next_actions: list[dict[str, str]] = []
+        if blockers:
+            next_actions.append(
+                {
+                    "action": "fix_runtime_configuration",
+                    "reason": "runtime checks have blocking failures",
+                }
+            )
+        if pending:
+            next_actions.append(
+                {
+                    "action": "recover_or_finalize_pending_payments",
+                    "reason": "unfinished payments are present",
+                }
+            )
+        if not blockers and not pending:
+            next_actions.append(
+                {
+                    "action": "ready",
+                    "reason": "merchant payment gateway is ready for agent purchases",
+                }
+            )
+        return {
+            "schema_version": "aimipay.agent-status.v1",
+            "generated_at": int(time.time()),
+            "service": {
+                "name": self.config.service_name,
+                "description": self.config.service_description,
+                "seller_address": self.config.seller_address,
+                "chain": "tron",
+                "chain_id": self.config.primary_chain().chain_id,
+                "settlement_backend": None if self.config.settlement is None else self.config.settlement.executor_backend,
+                "storage_backend": "sqlite" if self.config.sqlite_path else "memory",
+            },
+            "readiness": {
+                "ready": bool(health.get("ok")) and not blockers,
+                "health": health.get("summary", {}).get("health"),
+                "blockers": blockers,
+                "warnings": warnings,
+                "checks": checks,
+            },
+            "capabilities": {
+                "routes": [route.model_dump(mode="json") for route in self.config.routes if route.enabled],
+                "plans": [plan.model_dump(mode="json") for plan in self.config.plans if plan.enabled],
+            },
+            "payments": {
+                "unfinished_count": len(pending),
+                "status_counts": status_counts,
+                "latest_unfinished": [self.serialize_payment(record) for record in pending[:10]],
+            },
+            "security": {
+                "admin_read_protected": bool(
+                    self.config.admin_token
+                    or self.config.admin_token_sha256
+                    or self.config.admin_read_token
+                    or self.config.admin_read_token_sha256
+                ),
+                "audit_log_configured": bool(self.config.audit_log_path),
+            },
+            "next_actions": next_actions,
+        }
 
     def apply_operator_action(self, payment_id: str, action: OperatorPaymentActionRequest) -> PaymentRecord:
         record = self.payment_store.get(payment_id)
@@ -508,15 +633,31 @@ def install_gateway(
         return runtime.discover(base_url=str(request.base_url).rstrip("/"))
 
     @router.get("/ops/health")
-    async def ops_health() -> dict:
+    async def ops_health(request: Request) -> dict:
+        _require_admin_access(request, runtime.config, action="read")
         return runtime.health_report()
 
     @router.get("/ops/metrics")
-    async def ops_metrics() -> Response:
+    async def ops_metrics(request: Request) -> Response:
+        _require_admin_access(request, runtime.config, action="read")
         return Response(content=runtime.prometheus_metrics(), media_type="text/plain; version=0.0.4")
 
+    @router.get("/ops/diagnostics")
+    async def ops_diagnostics(request: Request) -> dict:
+        _require_admin_access(request, runtime.config, action="read")
+        runtime.event_logger.emit("admin_diagnostics_requested", caller=_caller_host(request))
+        return runtime.diagnostic_bundle()
+
+    @router.get("/ops/agent-status")
+    async def ops_agent_status(request: Request) -> dict:
+        _require_admin_access(request, runtime.config, action="read")
+        runtime.event_logger.emit("admin_agent_status_requested", caller=_caller_host(request))
+        return runtime.agent_status()
+
     @router.post("/ops/payments/{payment_id}/action")
-    async def ops_payment_action(payment_id: str, payload: OperatorPaymentActionRequest) -> dict:
+    async def ops_payment_action(request: Request, payment_id: str, payload: OperatorPaymentActionRequest) -> dict:
+        _require_admin_access(request, runtime.config, action="write")
+        runtime.event_logger.emit("admin_payment_action_requested", payment_id=payment_id, action=payload.action, caller=_caller_host(request))
         try:
             record = runtime.apply_operator_action(payment_id, payload)
         except AimiPayError as exc:
@@ -540,7 +681,8 @@ def install_gateway(
         return runtime.serialize_payment(record)
 
     @router.get("/payments/pending")
-    async def pending_payments() -> dict:
+    async def pending_payments(request: Request) -> dict:
+        _require_admin_access(request, runtime.config, action="read")
         records = runtime.list_pending_payments()
         return {
             "count": len(records),
@@ -549,11 +691,13 @@ def install_gateway(
 
     @router.get("/payments/recover")
     async def recover_payments(
+        request: Request,
         payment_id: str | None = None,
         idempotency_key: str | None = None,
         channel_id: str | None = None,
         status_filter: str | None = None,
     ) -> dict:
+        _require_admin_access(request, runtime.config, action="read")
         statuses = None if status_filter is None else [item.strip() for item in status_filter.split(",") if item.strip()]
         records = runtime.recover_payments(
             payment_id=payment_id,
@@ -588,7 +732,9 @@ def install_gateway(
         return runtime.serialize_payment(record)
 
     @router.post("/settlements/execute")
-    async def execute_settlements(payload: SettlementExecuteRequest) -> dict:
+    async def execute_settlements(request: Request, payload: SettlementExecuteRequest) -> dict:
+        _require_admin_access(request, runtime.config, action="write")
+        runtime.event_logger.emit("admin_settlement_execute_requested", payment_id=payload.payment_id, caller=_caller_host(request))
         try:
             records = runtime.execute_settlements(payment_id=payload.payment_id)
         except AimiPayError as exc:
@@ -599,7 +745,9 @@ def install_gateway(
         }
 
     @router.post("/settlements/reconcile")
-    async def reconcile_settlements(payload: SettlementExecuteRequest) -> dict:
+    async def reconcile_settlements(request: Request, payload: SettlementExecuteRequest) -> dict:
+        _require_admin_access(request, runtime.config, action="write")
+        runtime.event_logger.emit("admin_settlement_reconcile_requested", payment_id=payload.payment_id, caller=_caller_host(request))
         try:
             records = runtime.reconcile_settlements(payment_id=payload.payment_id)
         except AimiPayError as exc:
@@ -617,3 +765,51 @@ def install_gateway(
 def _as_http_exception(exc: AimiPayError) -> HTTPException:
     status_code = exc.status_code or status.HTTP_400_BAD_REQUEST
     return HTTPException(status_code=status_code, detail=error_payload(exc))
+
+
+def _require_admin_access(request: Request, config: GatewayConfig, *, action: str) -> None:
+    tokens = _accepted_admin_secrets(config, action=action)
+    if tokens:
+        auth = request.headers.get("authorization", "")
+        header_token = request.headers.get("x-aimipay-admin-token", "")
+        bearer = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+        if _token_matches(bearer, tokens) or _token_matches(header_token, tokens):
+            return
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"error": "admin_token_required"})
+
+    host = _caller_host(request)
+    if host in {"127.0.0.1", "localhost", "::1", "testclient"}:
+        return
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "admin_access_requires_localhost_or_token"})
+
+
+def _accepted_admin_secrets(config: GatewayConfig, *, action: str) -> list[tuple[str, str]]:
+    values: list[tuple[str, str]] = []
+    if action == "read":
+        if config.admin_read_token:
+            values.append(("plain", config.admin_read_token.strip()))
+        if config.admin_read_token_sha256:
+            values.append(("sha256", config.admin_read_token_sha256.strip()))
+    if config.admin_token:
+        values.append(("plain", config.admin_token.strip()))
+    if config.admin_token_sha256:
+        values.append(("sha256", config.admin_token_sha256.strip()))
+    return [(kind, value) for kind, value in values if value]
+
+
+def _token_matches(candidate: str, accepted: list[tuple[str, str]]) -> bool:
+    if not candidate:
+        return False
+    digest = hashlib.sha256(candidate.encode("utf-8")).hexdigest()
+    for kind, expected in accepted:
+        if kind == "plain" and secrets.compare_digest(candidate, expected):
+            return True
+        if kind == "sha256" and secrets.compare_digest(digest, expected.lower()):
+            return True
+    return False
+
+
+def _caller_host(request: Request) -> str:
+    if request.client is None:
+        return ""
+    return (request.client.host or "").lower()

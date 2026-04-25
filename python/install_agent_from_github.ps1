@@ -3,6 +3,7 @@ param(
     [string]$Branch = "main",
     [string]$InstallRoot = "",
     [string]$Target = "codex",
+    [string]$Host = "",
     [string]$MerchantUrl = "",
     [switch]$SkipVerify
 )
@@ -69,6 +70,7 @@ if (-not (Test-Path $targetDir)) {
 
 $bootstrapScript = Join-Path $targetDir "python\bootstrap_easy_setup.ps1"
 $installerScript = Join-Path $targetDir "python\install_agent_package.ps1"
+$hostInstallerScript = Join-Path $targetDir "python\install_ai_host.ps1"
 
 if (-not (Test-Path $bootstrapScript)) {
     throw "bootstrap_easy_setup.ps1 was not found after download."
@@ -82,7 +84,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "Agent bootstrap failed after download."
 }
 
-$installArgs = @("--repository-root", $targetDir, "--target", $Target, "--mode", "home-local")
+$effectiveHost = if ($Host) { $Host } else { $Target }
+if (Test-Path $hostInstallerScript) {
+    $installArgs = @("--repository-root", $targetDir, "--host", $effectiveHost, "--mode", "home-local")
+} else {
+    $installArgs = @("--repository-root", $targetDir, "--target", $Target, "--mode", "home-local")
+}
 if ($MerchantUrl) {
     $installArgs += @("--merchant-url", $MerchantUrl)
 }
@@ -90,7 +97,11 @@ if ($SkipVerify) {
     $installArgs += "--skip-verify"
 }
 
-powershell -ExecutionPolicy Bypass -File $installerScript @installArgs
+if (Test-Path $hostInstallerScript) {
+    powershell -ExecutionPolicy Bypass -File $hostInstallerScript @installArgs
+} else {
+    powershell -ExecutionPolicy Bypass -File $installerScript @installArgs
+}
 if ($LASTEXITCODE -ne 0) {
     throw "Agent package installation failed after download."
 }
@@ -99,4 +110,4 @@ Write-Host ""
 Write-Host "AimiPay agent package downloaded to:"
 Write-Host $targetDir
 Write-Host "Installed target:"
-Write-Host $Target
+Write-Host $effectiveHost

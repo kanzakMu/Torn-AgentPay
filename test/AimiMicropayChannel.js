@@ -4,6 +4,7 @@ const { ethers } = require("hardhat");
 const { buildRequestDigest, cancelDigest, voucherDigest, signDigest } = require("../scripts/protocol");
 
 const HARDHAT_MNEMONIC = "test test test test test test test test test test test junk";
+const DEFAULT_CHANNEL_SALT = "0x" + "11".repeat(32);
 
 describe("AimiMicropayChannel", function () {
   async function expectCustomError(txPromise, errorName) {
@@ -44,10 +45,16 @@ describe("AimiMicropayChannel", function () {
     const expiresAt = BigInt((await ethers.provider.getBlock("latest")).timestamp + 3600);
 
     await token.connect(buyer).approve(await channel.getAddress(), totalDeposit);
-    await channel.connect(buyer).initializeChannel(seller.address, await token.getAddress(), totalDeposit, expiresAt);
+    await channel.connect(buyer).initializeChannel(
+      seller.address,
+      await token.getAddress(),
+      totalDeposit,
+      expiresAt,
+      DEFAULT_CHANNEL_SALT,
+    );
 
-    const channelId = await channel.channelIdOf(buyer.address, seller.address, await token.getAddress());
-    return { ...fixture, channelId, totalDeposit, expiresAt };
+    const channelId = await channel.channelIdOf(buyer.address, seller.address, await token.getAddress(), DEFAULT_CHANNEL_SALT);
+    return { ...fixture, channelId, totalDeposit, expiresAt, channelSalt: DEFAULT_CHANNEL_SALT };
   }
 
   async function buildVoucherPayload({
@@ -293,8 +300,14 @@ describe("AimiMicropayChannel", function () {
     const expiresAt = BigInt(now + 3);
 
     await token.connect(buyer).approve(await channel.getAddress(), totalDeposit);
-    await channel.connect(buyer).initializeChannel(seller.address, await token.getAddress(), totalDeposit, expiresAt);
-    const channelId = await channel.channelIdOf(buyer.address, seller.address, await token.getAddress());
+    await channel.connect(buyer).initializeChannel(
+      seller.address,
+      await token.getAddress(),
+      totalDeposit,
+      expiresAt,
+      DEFAULT_CHANNEL_SALT,
+    );
+    const channelId = await channel.channelIdOf(buyer.address, seller.address, await token.getAddress(), DEFAULT_CHANNEL_SALT);
 
     await ethers.provider.send("evm_increaseTime", [5]);
     await ethers.provider.send("evm_mine");
@@ -330,5 +343,127 @@ describe("AimiMicropayChannel", function () {
     const state = await channel.paymentChannels(channelId);
     expect(state.isActive).to.equal(false);
     expect(state.totalDeposit).to.equal(0n);
+  });
+
+  it("does not let a voucher from one channel salt claim a later channel", async function () {
+    const { buyer, seller, token, channel } = await deployFixture();
+    const totalDeposit = 1_500_000n;
+    const expiresAt = BigInt((await ethers.provider.getBlock("latest")).timestamp + 3600);
+    const firstSalt = "0x" + "aa".repeat(32);
+    const secondSalt = "0x" + "bb".repeat(32);
+
+    await token.connect(buyer).approve(await channel.getAddress(), totalDeposit);
+    await channel.connect(buyer).initializeChannel(seller.address, await token.getAddress(), totalDeposit, expiresAt, firstSalt);
+    const firstChannelId = await channel.channelIdOf(buyer.address, seller.address, await token.getAddress(), firstSalt);
+    const requestDeadline = BigInt((await ethers.provider.getBlock("latest")).timestamp + 120);
+    const claimAmount = 900_000n;
+    const { requestDigest, buyerSignature } = await buildVoucherPayload({
+      buyer,
+      seller,
+      token,
+      channel,
+      channelId: firstChannelId,
+      amountAtomic: claimAmount,
+      voucherNonce: 1n,
+      expiresAt,
+      requestDeadline,
+    });
+
+    await channel.connect(seller).cancelChannel(
+      firstChannelId,
+      signDigest(walletFor(0).privateKey, cancelDigest({
+        contractAddress: await channel.getAddress(),
+        chainId: (await ethers.provider.getNetwork()).chainId,
+        channelId: firstChannelId,
+        buyer: buyer.address,
+        seller: seller.address,
+        token: await token.getAddress(),
+        totalDeposit,
+        expiresAt,
+      })),
+      signDigest(walletFor(1).privateKey, cancelDigest({
+        contractAddress: await channel.getAddress(),
+        chainId: (await ethers.provider.getNetwork()).chainId,
+        channelId: firstChannelId,
+        buyer: buyer.address,
+        seller: seller.address,
+        token: await token.getAddress(),
+        totalDeposit,
+        expiresAt,
+      })),
+    );
+
+    await token.connect(buyer).approve(await channel.getAddress(), totalDeposit);
+    await channel.connect(buyer).initializeChannel(seller.address, await token.getAddress(), totalDeposit, expiresAt, secondSalt);
+    const secondChannelId = await channel.channelIdOf(buyer.address, seller.address, await token.getAddress(), secondSalt);
+
+    await expectCustomError(
+      channel.connect(seller).claimPayment(
+        secondChannelId,
+        claimAmount,
+        1n,
+        expiresAt,
+        requestDeadline,
+        requestDigest,
+        buyerSignature,
+      ),
+      "InvalidVoucherSigner",
+    );
+  });
+
+  it("rejects opening two active channels with the same salt", async function () {
+    const { buyer, seller, token, channel } = await deployFixture();
+    const totalDeposit = 1_500_000n;
+    const expiresAt = BigInt((await ethers.provider.getBlock("latest")).timestamp + 3600);
+    const salt = "0x" + "44".repeat(32);
+
+    await token.connect(buyer).approve(await channel.getAddress(), totalDeposit * 2n);
+    await channel.connect(buyer).initializeChannel(seller.address, await token.getAddress(), totalDeposit, expiresAt, salt);
+
+    await expectCustomError(
+      channel.connect(buyer).initializeChannel(seller.address, await token.getAddress(), totalDeposit, expiresAt, salt),
+      "ChannelAlreadyActive",
+    );
+  });
+
+  it("preserves token supply across claim and refund flows", async function () {
+    const { buyer, seller, token, channel } = await deployFixture();
+    const totalSupply = await token.totalSupply();
+    const totalDeposit = 1_500_000n;
+    const expiresAt = BigInt((await ethers.provider.getBlock("latest")).timestamp + 3600);
+    const salt = "0x" + "55".repeat(32);
+    const claimAmount = 700_000n;
+    const requestDeadline = BigInt((await ethers.provider.getBlock("latest")).timestamp + 120);
+
+    await token.connect(buyer).approve(await channel.getAddress(), totalDeposit);
+    await channel.connect(buyer).initializeChannel(seller.address, await token.getAddress(), totalDeposit, expiresAt, salt);
+    const channelId = await channel.channelIdOf(buyer.address, seller.address, await token.getAddress(), salt);
+    const { requestDigest, buyerSignature } = await buildVoucherPayload({
+      buyer,
+      seller,
+      token,
+      channel,
+      channelId,
+      amountAtomic: claimAmount,
+      voucherNonce: 1n,
+      expiresAt,
+      requestDeadline,
+    });
+
+    await channel.connect(seller).claimPayment(
+      channelId,
+      claimAmount,
+      1n,
+      expiresAt,
+      requestDeadline,
+      requestDigest,
+      buyerSignature,
+    );
+
+    const combined = (
+      await token.balanceOf(buyer.address)
+    ) + (await token.balanceOf(seller.address)) + (await token.balanceOf(await channel.getAddress()));
+    expect(combined).to.equal(totalSupply);
+    expect(await token.balanceOf(await channel.getAddress())).to.equal(0n);
   });
 });

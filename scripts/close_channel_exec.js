@@ -20,6 +20,7 @@ async function main() {
       buyer: buyerAddress,
       seller: plan.seller_address,
       token: plan.token_address,
+      channelSalt: plan.channel_salt,
       fullHost,
     });
 
@@ -28,6 +29,7 @@ async function main() {
   return {
     tx_id: txId,
     channel_id: channelId,
+    channel_salt: plan.channel_salt,
     buyer_address: buyerAddress,
     seller_address: plan.seller_address,
     token_address: plan.token_address,

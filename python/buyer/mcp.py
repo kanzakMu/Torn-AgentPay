@@ -45,6 +45,34 @@ class AimiPayMcpServer:
                 },
             ),
             _tool(
+                "aimipay.quote_budget",
+                "Return an AI-facing budget quote with auto-decision and next action hints.",
+                {
+                    "type": "object",
+                    "properties": {
+                        "merchant_base_url": {"type": "string"},
+                        "capability_id": {"type": "string"},
+                        "expected_units": {"type": "integer"},
+                        "budget_limit_atomic": {"type": "integer"},
+                    },
+                    "required": ["capability_id"],
+                },
+            ),
+            _tool(
+                "aimipay.plan_purchase",
+                "Select a matching capability and return a no-side-effect purchase plan for agent decision making.",
+                {
+                    "type": "object",
+                    "properties": {
+                        "merchant_base_url": {"type": "string"},
+                        "capability_type": {"type": "string"},
+                        "capability_id": {"type": "string"},
+                        "expected_units": {"type": "integer"},
+                        "budget_limit_atomic": {"type": "integer"},
+                    },
+                },
+            ),
+            _tool(
                 "aimipay.open_channel",
                 "Prepare or open a payment channel for a paid route.",
                 {
@@ -149,6 +177,28 @@ class AimiPayMcpServer:
                         "payment_id": {"type": "string"},
                     },
                     "required": ["payment_id"],
+                },
+            ),
+            _tool(
+                "aimipay.get_merchant_status",
+                "Return an AI-readable merchant readiness, capability, security, and payment lifecycle summary.",
+                {
+                    "type": "object",
+                    "properties": {
+                        "merchant_base_url": {"type": "string"},
+                        "admin_token": {"type": "string"},
+                    },
+                },
+            ),
+            _tool(
+                "aimipay.get_agent_state",
+                "Return the full AI-facing protocol state: status, capabilities, pending payments, and next actions.",
+                {
+                    "type": "object",
+                    "properties": {
+                        "merchant_base_url": {"type": "string"},
+                        "admin_token": {"type": "string"},
+                    },
                 },
             ),
             _tool(
@@ -272,6 +322,19 @@ class AimiPayMcpServer:
                 expected_units=args.get("expected_units"),
                 budget_limit_atomic=args.get("budget_limit_atomic"),
             )
+        if name == "aimipay.quote_budget":
+            return adapter.quote_budget(
+                capability_id=args["capability_id"],
+                expected_units=args.get("expected_units"),
+                budget_limit_atomic=args.get("budget_limit_atomic"),
+            )
+        if name == "aimipay.plan_purchase":
+            return adapter.plan_purchase(
+                capability_type=args.get("capability_type"),
+                capability_id=args.get("capability_id"),
+                expected_units=args.get("expected_units"),
+                budget_limit_atomic=args.get("budget_limit_atomic"),
+            )
         if name == "aimipay.open_channel":
             return adapter.open_channel(
                 route_path=args["route_path"],
@@ -320,6 +383,10 @@ class AimiPayMcpServer:
             return adapter.execute_payment(args["payment_id"])
         if name == "aimipay.get_payment_status":
             return adapter.get_payment_status(args["payment_id"])
+        if name == "aimipay.get_merchant_status":
+            return adapter.get_merchant_status(admin_token=args.get("admin_token"))
+        if name == "aimipay.get_agent_state":
+            return adapter.get_agent_state(admin_token=args.get("admin_token"))
         if name == "aimipay.reconcile_payment":
             return adapter.reconcile_payment(args["payment_id"])
         if name == "aimipay.finalize_payment":

@@ -7,6 +7,13 @@ from ops_tools.agent_onboarding import run_agent_onboarding
 from ops_tools.buyer_setup import prepare_buyer_install_env
 from ops_tools.wallet_funding import inspect_wallet_funding
 from ops_tools.wallet_setup import ensure_local_buyer_wallet
+from shared import (
+    agent_state_payload,
+    budget_quote_payload,
+    capability_catalog_payload,
+    payment_state_payload,
+    recovery_payload,
+)
 
 from .client import BuyerClient
 
@@ -19,8 +26,9 @@ class AimiPayAgentAdapter:
     def list_offers(self) -> dict:
         offers = self.client.discover_offers()
         return {
+            **capability_catalog_payload(offers=offers),
             "offers": offers,
-            "next_step": "estimate_budget",
+            "next_step": "quote_budget",
             "action_required": None,
         }
 
@@ -37,10 +45,47 @@ class AimiPayAgentAdapter:
             budget_limit_atomic=budget_limit_atomic,
         )
         return {
-            **estimate,
-            "estimated_cost_atomic": estimate["budget"]["estimated_total_atomic"],
-            "human_approval_required": estimate["decision"]["action"] == "needs_approval",
-            "next_step": "prepare_or_open_channel",
+            **budget_quote_payload(estimate=estimate),
+            "next_step": "prepare_purchase"
+            if estimate["decision"]["action"] == "buy_now"
+            else estimate["decision"]["action"],
+        }
+
+    def quote_budget(
+        self,
+        *,
+        capability_id: str,
+        expected_units: int | None = None,
+        budget_limit_atomic: int | None = None,
+    ) -> dict:
+        return self.estimate_budget(
+            capability_id=capability_id,
+            expected_units=expected_units,
+            budget_limit_atomic=budget_limit_atomic,
+        )
+
+    def plan_purchase(
+        self,
+        *,
+        capability_type: str | None = None,
+        capability_id: str | None = None,
+        expected_units: int | None = None,
+        budget_limit_atomic: int | None = None,
+    ) -> dict:
+        selection = self.client.select_capability_offer(
+            capability_type=capability_type,
+            capability_id=capability_id,
+            expected_units=expected_units,
+            budget_limit_atomic=budget_limit_atomic,
+        )
+        quote = budget_quote_payload(estimate=selection["selected"])
+        return {
+            **quote,
+            "kind": "purchase_plan",
+            "selection": selection,
+            "next_step": "prepare_purchase"
+            if selection["selected"]["decision"]["action"] == "buy_now"
+            else selection["selected"]["decision"]["action"],
         }
 
     def open_channel(self, **kwargs) -> dict:
@@ -107,7 +152,7 @@ class AimiPayAgentAdapter:
     def get_payment_status(self, payment_id: str) -> dict:
         payment = self.client.get_payment_status(payment_id)
         return {
-            "payment": payment,
+            **payment_state_payload(payment=payment),
             "safe_to_retry": bool(payment.get("safe_to_retry", False)),
             "next_step": payment.get("next_step"),
         }
@@ -139,10 +184,46 @@ class AimiPayAgentAdapter:
         }
 
     def list_pending_payments(self) -> dict:
-        return self.client.list_pending_payments()
+        pending = self.client.list_pending_payments()
+        payments = pending.get("payments") or []
+        return {
+            **recovery_payload(payments=payments, source="list_pending_payments"),
+            "count": pending.get("count", len(payments)),
+        }
+
+    def get_merchant_status(self, *, admin_token: str | None = None) -> dict:
+        status = self.client.get_merchant_agent_status(admin_token=admin_token)
+        readiness = status.get("readiness") or {}
+        payments = status.get("payments") or {}
+        if not readiness.get("ready"):
+            next_step = "review_merchant_readiness"
+        elif payments.get("unfinished_count", 0):
+            next_step = "recover_or_finalize_pending_payments"
+        else:
+            next_step = "ready_to_purchase"
+        return {
+            **status,
+            "next_step": next_step,
+            "action_required": None if next_step == "ready_to_purchase" else next_step,
+        }
 
     def recover_payment(self, **kwargs) -> dict:
-        return self.client.recover_payment(**kwargs)
+        recovered = self.client.recover_payment(**kwargs)
+        payments = recovered.get("payments") or []
+        return {
+            **recovery_payload(payments=payments, source="recover_payment"),
+            "count": recovered.get("count", len(payments)),
+        }
+
+    def get_agent_state(self, *, admin_token: str | None = None) -> dict:
+        merchant_status = self.client.get_merchant_agent_status(admin_token=admin_token)
+        offers = self.client.discover_offers()
+        pending = self.client.list_pending_payments()
+        return agent_state_payload(
+            merchant_status=merchant_status,
+            offers=offers,
+            pending=pending,
+        )
 
     def check_wallet_funding(self, *, env_file: str | None = None) -> dict:
         report = inspect_wallet_funding(
