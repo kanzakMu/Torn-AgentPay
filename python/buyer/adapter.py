@@ -10,6 +10,7 @@ from ops_tools.wallet_setup import ensure_local_buyer_wallet
 from shared import (
     agent_state_payload,
     budget_quote_payload,
+    build_agent_capability_manifest,
     capability_catalog_payload,
     payment_state_payload,
     recovery_payload,
@@ -22,6 +23,9 @@ from .client import BuyerClient
 class AimiPayAgentAdapter:
     client: BuyerClient
     http_clients: dict[str, Any] | None = None
+
+    def get_protocol_manifest(self) -> dict:
+        return build_agent_capability_manifest()
 
     def list_offers(self) -> dict:
         offers = self.client.discover_offers()

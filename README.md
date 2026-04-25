@@ -84,6 +84,7 @@ Implemented `kind` values:
 
 Useful MCP tools:
 
+- `aimipay.get_protocol_manifest`
 - `aimipay.get_agent_state`
 - `aimipay.list_offers`
 - `aimipay.quote_budget`
@@ -107,6 +108,11 @@ Agent-readable seller status endpoint:
 ```text
 GET /_aimipay/ops/agent-status
 ```
+
+AI host playbook and static capability manifest:
+
+- [AI Host Playbook](spec/AI_HOST_PLAYBOOK.md)
+- [Capability Manifest](agent-dist/aimipay.capabilities.json)
 
 ## Quick Start
 
@@ -167,9 +173,12 @@ Supported host targets:
 The installer generates:
 
 - `aimipay-install-report.json`
+- `aimipay-post-install-check.json`
 - `aimipay-install-next-steps.md`
 - host-specific MCP/config files
 - installed skill/plugin/connector artifacts as needed
+
+By default the installer also runs a post-install self-check: installed artifact verification, skill-only doctor, capability manifest validation, and AI-facing protocol smoke. Use `--skip-post-install-check` only when packaging offline artifacts and running checks later.
 
 ## Skill-Only Install
 
@@ -194,6 +203,8 @@ The installed skill includes:
 The runner lets the skill call real functionality without MCP host loading:
 
 ```powershell
+python <skill-path>/aimipay_skill_runner.py doctor
+python <skill-path>/aimipay_skill_runner.py protocol-manifest
 python <skill-path>/aimipay_skill_runner.py list-tools
 python <skill-path>/aimipay_skill_runner.py get-agent-state
 python <skill-path>/aimipay_skill_runner.py list-offers
@@ -201,6 +212,13 @@ python <skill-path>/aimipay_skill_runner.py quote-budget --capability-id researc
 python <skill-path>/aimipay_skill_runner.py plan-purchase --capability-type web_search --budget-limit-atomic 1000000
 python <skill-path>/aimipay_skill_runner.py get-payment-status --payment-id pay_123
 python <skill-path>/aimipay_skill_runner.py recover-payment --payment-id pay_123
+```
+
+Run the AI host protocol smoke test:
+
+```powershell
+cd python
+python -m ops_tools.ai_host_smoke --json
 ```
 
 ## Install Directly From GitHub

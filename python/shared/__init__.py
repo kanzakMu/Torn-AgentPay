@@ -23,12 +23,15 @@ from .models import (
 )
 from .payments import InMemoryPaymentStore, SqlitePaymentStore, make_channel_id, make_payment_id
 from .protocol import (
+    ERROR_RECOVERY_ACTIONS,
     agent_protocol_envelope,
     agent_state_payload,
     budget_quote_payload,
+    build_agent_capability_manifest,
     build_payment_lifecycle,
     build_protocol_reference,
     capability_catalog_payload,
+    error_recovery_action,
     payment_state_payload,
     recovery_payload,
 )
@@ -83,6 +86,9 @@ __all__ = [
     "normalize_tron_address",
     "SellerProfile",
     "SignatureEnvelope",
+    "ERROR_RECOVERY_ACTIONS",
+    "build_agent_capability_manifest",
+    "error_recovery_action",
     "sign_payload",
     "verify_signed_payload",
     "voucher_digest",

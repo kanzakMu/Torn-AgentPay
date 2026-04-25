@@ -14,6 +14,8 @@ def main(argv: list[str] | None = None) -> int:
         "command",
         choices=[
             "list-tools",
+            "doctor",
+            "protocol-manifest",
             "get-agent-state",
             "list-offers",
             "quote-budget",
@@ -37,6 +39,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     config = _load_runtime_config(Path(args.runtime_config))
+    if args.command == "doctor":
+        payload = _doctor_payload(config, Path(args.runtime_config))
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0
+
     _prepare_repo_imports(config)
     _load_env_file(Path(config["env_file"]))
 
@@ -45,6 +52,8 @@ def main(argv: list[str] | None = None) -> int:
     server = build_server()
     if args.command == "list-tools":
         payload = {"tools": server.list_tools()}
+    elif args.command == "protocol-manifest":
+        payload = server.call_tool("aimipay.get_protocol_manifest", {})
     else:
         tool_name, arguments = _tool_call(args)
         if args.merchant_base_url:
@@ -101,6 +110,8 @@ def _load_env_file(path: Path) -> None:
 
 
 def _tool_call(args: argparse.Namespace) -> tuple[str, dict[str, Any]]:
+    if args.command == "protocol-manifest":
+        return "aimipay.get_protocol_manifest", {}
     if args.command == "get-agent-state":
         return "aimipay.get_agent_state", _compact({"admin_token": args.admin_token})
     if args.command == "list-offers":
@@ -139,6 +150,89 @@ def _tool_call(args: argparse.Namespace) -> tuple[str, dict[str, Any]]:
 
 def _compact(payload: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in payload.items() if value is not None}
+
+
+def _doctor_payload(config: dict[str, Any], config_path: Path) -> dict[str, Any]:
+    repo_root = Path(config.get("repository_root", "")).expanduser()
+    python_dir = repo_root / "python"
+    env_file = Path(config.get("env_file", "")).expanduser()
+    runner = config_path.with_name(config.get("runner", "aimipay_skill_runner.py"))
+    merchant_urls = [item for item in config.get("merchant_urls", []) if item]
+    checks = [
+        {
+            "name": "runtime_config",
+            "ok": config_path.exists(),
+            "path": str(config_path),
+        },
+        {
+            "name": "repository_root",
+            "ok": repo_root.exists(),
+            "path": str(repo_root),
+        },
+        {
+            "name": "python_package",
+            "ok": python_dir.exists(),
+            "path": str(python_dir),
+        },
+        {
+            "name": "env_file",
+            "ok": env_file.exists(),
+            "path": str(env_file),
+        },
+        {
+            "name": "skill_runner",
+            "ok": runner.exists(),
+            "path": str(runner),
+        },
+        {
+            "name": "merchant_urls",
+            "ok": bool(merchant_urls),
+            "value": merchant_urls,
+        },
+    ]
+    missing = [item for item in checks if not item["ok"]]
+    next_actions: list[dict[str, Any]] = []
+    if missing:
+        next_actions.append(
+            {
+                "action": "run_onboarding",
+                "command": f'python "{runner}" get-agent-state',
+                "reason": "The skill is installed, but local runtime state is incomplete.",
+            }
+        )
+    else:
+        next_actions.append(
+            {
+                "action": "get_agent_state",
+                "command": f'python "{runner}" get-agent-state',
+                "reason": "Skill runtime files are present; ask AimiPay for readiness and next actions.",
+            }
+        )
+        next_actions.append(
+            {
+                "action": "protocol_manifest",
+                "command": f'python "{runner}" protocol-manifest',
+                "reason": "Expose the stable tool flow and recovery matrix to the AI host.",
+            }
+        )
+    return {
+        "schema_version": "aimipay.skill-doctor.v1",
+        "ok": not missing,
+        "checks": checks,
+        "next_actions": next_actions,
+        "available_commands": [
+            "doctor",
+            "protocol-manifest",
+            "list-tools",
+            "get-agent-state",
+            "list-offers",
+            "quote-budget",
+            "plan-purchase",
+            "get-payment-status",
+            "list-pending-payments",
+            "recover-payment",
+        ],
+    }
 
 
 if __name__ == "__main__":

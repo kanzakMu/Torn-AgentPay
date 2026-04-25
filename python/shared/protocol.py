@@ -19,6 +19,97 @@ RECOVERABLE_PAYMENT_STATUSES = frozenset({"pending", "authorized", "submitted"})
 
 PAYMENT_ERROR_CODES: dict[str, dict[str, Any]] = DEFAULT_ERROR_CONTRACTS
 
+ERROR_RECOVERY_ACTIONS: dict[str, dict[str, Any]] = {
+    "budget_exceeded": {
+        "category": "budget",
+        "agent_action": "request_human_approval",
+        "tool": "aimipay.quote_budget",
+        "safe_to_retry": True,
+        "human_approval_required": True,
+        "prompt": "The estimated payment exceeds the current budget. Ask the user to approve a higher limit or select a cheaper capability.",
+    },
+    "seller_unreachable": {
+        "category": "merchant_connectivity",
+        "agent_action": "retry_or_switch_merchant",
+        "tool": "aimipay.get_agent_state",
+        "safe_to_retry": True,
+        "human_approval_required": False,
+        "prompt": "The merchant endpoint is not reachable. Retry discovery, then ask the user for a different merchant URL if it still fails.",
+    },
+    "insufficient_balance": {
+        "category": "wallet",
+        "agent_action": "ask_user_to_fund_wallet",
+        "tool": "aimipay.check_wallet_funding",
+        "safe_to_retry": True,
+        "human_approval_required": True,
+        "prompt": "The buyer wallet does not appear funded enough. Return funding instructions before attempting another purchase.",
+    },
+    "voucher_rejected": {
+        "category": "authorization",
+        "agent_action": "rebuild_payment_authorization",
+        "tool": "aimipay.create_payment",
+        "safe_to_retry": True,
+        "human_approval_required": False,
+        "prompt": "The seller rejected the voucher. Rebuild the request digest and payment authorization with a fresh nonce and deadline.",
+    },
+    "settlement_pending": {
+        "category": "settlement",
+        "agent_action": "confirm_or_finalize_payment",
+        "tool": "aimipay.finalize_payment",
+        "safe_to_retry": True,
+        "human_approval_required": False,
+        "prompt": "Settlement is not terminal yet. Continue with finalize_payment unless the payment is already submitted and awaiting confirmation.",
+    },
+    "payment_not_found": {
+        "category": "lookup",
+        "agent_action": "list_pending_payments",
+        "tool": "aimipay.list_pending_payments",
+        "safe_to_retry": False,
+        "human_approval_required": False,
+        "prompt": "The requested payment id was not found. List pending payments and ask the user for the correct id if needed.",
+    },
+    "request_deadline_expired": {
+        "category": "authorization",
+        "agent_action": "prepare_new_purchase",
+        "tool": "aimipay.prepare_purchase",
+        "safe_to_retry": False,
+        "human_approval_required": False,
+        "prompt": "The request deadline expired. Create a fresh payment intent instead of replaying the old authorization.",
+    },
+    "payment_expired": {
+        "category": "channel",
+        "agent_action": "prepare_new_purchase",
+        "tool": "aimipay.prepare_purchase",
+        "safe_to_retry": False,
+        "human_approval_required": False,
+        "prompt": "The payment or channel expired. Open or prepare a new channel session before paying again.",
+    },
+    "settlement_execution_failed": {
+        "category": "settlement",
+        "agent_action": "retry_finalize_payment",
+        "tool": "aimipay.finalize_payment",
+        "safe_to_retry": True,
+        "human_approval_required": False,
+        "prompt": "Settlement execution failed but may be retryable. Retry finalize_payment with the same payment id.",
+    },
+    "settlement_confirmation_failed": {
+        "category": "settlement",
+        "agent_action": "retry_reconcile_payment",
+        "tool": "aimipay.reconcile_payment",
+        "safe_to_retry": True,
+        "human_approval_required": False,
+        "prompt": "The transaction was submitted but confirmation failed. Reconcile before creating another payment.",
+    },
+    "settlement_confirmation_retry_exhausted": {
+        "category": "settlement",
+        "agent_action": "surface_manual_review",
+        "tool": "aimipay.get_payment_status",
+        "safe_to_retry": False,
+        "human_approval_required": True,
+        "prompt": "Confirmation retry budget is exhausted. Show the payment status and ask the user before taking further action.",
+    },
+}
+
 
 def build_protocol_reference() -> dict[str, Any]:
     return {
@@ -84,6 +175,146 @@ def build_protocol_reference() -> dict[str, Any]:
             "next_action_contract": "Each AI-facing payload includes next_actions with action, optional tool, and reason.",
         },
         "error_codes": PAYMENT_ERROR_CODES,
+        "error_recovery_actions": ERROR_RECOVERY_ACTIONS,
+    }
+
+
+def build_agent_capability_manifest() -> dict[str, Any]:
+    return {
+        "schema_version": "aimipay.capabilities.v1",
+        "protocol_version": "aimipay-tron-v1",
+        "agent_protocol_version": "aimipay.agent-protocol.v1",
+        "purpose": "Expose AimiPay paid capability discovery, budgeting, payment lifecycle, and recovery to AI hosts.",
+        "default_flow": [
+            "aimipay.get_agent_state",
+            "aimipay.list_offers",
+            "aimipay.quote_budget",
+            "aimipay.plan_purchase",
+            "aimipay.prepare_purchase",
+            "aimipay.submit_purchase",
+            "aimipay.finalize_payment",
+        ],
+        "tools": [
+            {
+                "name": "aimipay.get_agent_state",
+                "kind": "state",
+                "side_effect": "read",
+                "returns": "agent_state",
+                "use_when": "Start here to inspect readiness, capabilities, pending payments, and next actions.",
+            },
+            {
+                "name": "aimipay.list_offers",
+                "kind": "capability_catalog",
+                "side_effect": "read",
+                "returns": "capability_catalog",
+                "use_when": "List merchant-paid capabilities before selecting or quoting.",
+            },
+            {
+                "name": "aimipay.quote_budget",
+                "kind": "budget_quote",
+                "side_effect": "read",
+                "required": ["capability_id"],
+                "returns": "budget_quote",
+                "use_when": "Estimate cost and decide whether an AI may auto-purchase under the given budget.",
+            },
+            {
+                "name": "aimipay.plan_purchase",
+                "kind": "purchase_plan",
+                "side_effect": "read",
+                "returns": "purchase_plan",
+                "use_when": "Choose the best matching offer without opening a channel or creating a payment.",
+            },
+            {
+                "name": "aimipay.prepare_purchase",
+                "kind": "purchase_plan",
+                "side_effect": "opens_or_reuses_channel",
+                "returns": "prepared_purchase",
+                "use_when": "After budget approval, prepare the channel session needed for payment.",
+            },
+            {
+                "name": "aimipay.submit_purchase",
+                "kind": "payment_lifecycle",
+                "side_effect": "creates_payment",
+                "returns": "payment_state",
+                "use_when": "Create the voucher-backed payment and optionally execute settlement.",
+            },
+            {
+                "name": "aimipay.get_payment_status",
+                "kind": "payment_lifecycle",
+                "side_effect": "read",
+                "required": ["payment_id"],
+                "returns": "payment_state",
+                "use_when": "Inspect one payment and decide the next lifecycle action.",
+            },
+            {
+                "name": "aimipay.finalize_payment",
+                "kind": "payment_lifecycle",
+                "side_effect": "settlement",
+                "required": ["payment_id"],
+                "returns": "payment_state",
+                "use_when": "Drive an authorized/submitted payment toward settled/failed/expired.",
+            },
+            {
+                "name": "aimipay.list_pending_payments",
+                "kind": "payment_recovery",
+                "side_effect": "read",
+                "returns": "payment_recovery",
+                "use_when": "Recover context after host restart or unknown payment state.",
+            },
+            {
+                "name": "aimipay.recover_payment",
+                "kind": "payment_recovery",
+                "side_effect": "read_or_settlement",
+                "returns": "payment_recovery",
+                "use_when": "Recover unfinished payments by payment id, idempotency key, channel id, or status.",
+            },
+            {
+                "name": "aimipay.check_wallet_funding",
+                "kind": "status",
+                "side_effect": "read",
+                "returns": "wallet_readiness",
+                "use_when": "Explain whether the buyer wallet exists and is funded enough.",
+            },
+            {
+                "name": "aimipay.run_onboarding",
+                "kind": "status",
+                "side_effect": "writes_local_config",
+                "returns": "onboarding_report",
+                "use_when": "Skill-only or first-run hosts need local setup guidance.",
+            },
+        ],
+        "decision_actions": {
+            "buy_now": "The AI may continue automatically when the user's budget policy permits it.",
+            "needs_approval": "Ask the user before preparing or submitting payment.",
+            "skip": "Do not pay; either the route is free or no paid action is needed.",
+        },
+        "error_recovery_actions": ERROR_RECOVERY_ACTIONS,
+        "host_contract": {
+            "read_before_side_effects": ["aimipay.get_agent_state", "aimipay.quote_budget"],
+            "never_replay_old_authorizations": True,
+            "respect_human_approval_required": True,
+            "preserve_payment_id_for_recovery": True,
+        },
+    }
+
+
+def error_recovery_action(code: str) -> dict[str, Any]:
+    contract = PAYMENT_ERROR_CODES.get(code, {})
+    recovery = ERROR_RECOVERY_ACTIONS.get(code)
+    if recovery is None:
+        retryable = bool(contract.get("retryable", False))
+        recovery = {
+            "category": "unknown",
+            "agent_action": "show_error_and_stop" if not retryable else "retry_last_safe_read",
+            "tool": None,
+            "safe_to_retry": retryable,
+            "human_approval_required": not retryable,
+            "prompt": "Return the error to the user with the payment id and stop before taking side effects.",
+        }
+    return {
+        "code": code,
+        "message": contract.get("message", code.replace("_", " ")),
+        **recovery,
     }
 
 

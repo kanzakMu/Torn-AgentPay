@@ -32,6 +32,7 @@ def install_agent_package(
     env_file: str | Path | None = None,
     run_verify: bool = True,
     run_onboarding: bool = True,
+    run_post_install_check: bool = True,
     output_json: bool = False,
 ) -> dict[str, Any]:
     repo_root = Path(repository_root or Path(__file__).resolve().parents[2]).resolve()
@@ -48,6 +49,7 @@ def install_agent_package(
     source_marketplace = repo_root / ".agents" / "plugins" / "marketplace.json"
     source_connector = repo_root / "agent-dist" / "connector-package.json"
     source_core = repo_root / "agent-dist" / "aimipay-agent-core.json"
+    source_capabilities = repo_root / "agent-dist" / "aimipay.capabilities.json"
     installed: dict[str, str] = {}
     generated_host_configs: dict[str, str] = {}
 
@@ -84,6 +86,9 @@ def install_agent_package(
         core_dest = layout["connector_root"] / "aimipay-agent-core.json"
         core_dest.write_text(source_core.read_text(encoding="utf-8"), encoding="utf-8")
         installed["agent_core"] = str(core_dest)
+        capabilities_dest = layout["connector_root"] / "aimipay.capabilities.json"
+        capabilities_dest.write_text(source_capabilities.read_text(encoding="utf-8"), encoding="utf-8")
+        installed["capability_manifest"] = str(capabilities_dest)
 
     for host_target in sorted(HOST_TARGETS & install_plan):
         generated = _generate_host_config(
@@ -143,7 +148,26 @@ def install_agent_package(
         )
         report["startup_onboarding"] = onboarding_report
 
+    if run_post_install_check:
+        from ops_tools.host_post_install_check import run_host_post_install_check
+
+        post_install_check = run_host_post_install_check(
+            repository_root=repo_root,
+            host=target,
+            mode=mode,
+            install_root=install_root,
+            expected_targets=sorted(install_plan),
+            run_protocol_smoke=True,
+            output_json=False,
+        )
+        report["post_install_check"] = post_install_check
+        report["ok"] = report["ok"] and post_install_check["ok"]
+
     report["next_steps"] = _build_next_steps(report)
+    if report.get("post_install_check"):
+        report["post_install_check_path"] = str(
+            _write_post_install_check(layout["host_config_root"], report["post_install_check"])
+        )
     report["install_report_path"] = str(_write_install_report(layout["host_config_root"], report))
     report["next_steps_path"] = str(_write_next_steps_markdown(layout["host_config_root"], report))
 
@@ -180,6 +204,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--env-file")
     parser.add_argument("--skip-verify", action="store_true")
     parser.add_argument("--skip-onboarding", action="store_true")
+    parser.add_argument("--skip-post-install-check", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
@@ -193,6 +218,7 @@ def main(argv: list[str] | None = None) -> int:
         env_file=args.env_file,
         run_verify=not args.skip_verify,
         run_onboarding=not args.skip_onboarding,
+        run_post_install_check=not args.skip_post_install_check,
         output_json=args.json,
     )
     return 0
@@ -415,6 +441,10 @@ def _format_report(report: dict[str, Any]) -> str:
         lines.append(f"- install report: {report['install_report_path']}")
     if report.get("next_steps_path"):
         lines.append(f"- next steps: {report['next_steps_path']}")
+    if report.get("post_install_check_path"):
+        lines.append(f"- post-install check: {report['post_install_check_path']}")
+    if report.get("post_install_check"):
+        lines.append(f"- post-install check ok: {report['post_install_check'].get('ok')}")
     for item in report.get("next_steps", []):
         lines.append(f"- next action [{item['target']}]: {item['action']}")
     return "\n".join(lines)
@@ -473,6 +503,10 @@ def _write_install_report(host_root: Path, report: dict[str, Any]) -> Path:
     return _write_json(path, payload)
 
 
+def _write_post_install_check(host_root: Path, report: dict[str, Any]) -> Path:
+    return _write_json(host_root / "aimipay-post-install-check.json", report)
+
+
 def _write_next_steps_markdown(host_root: Path, report: dict[str, Any]) -> Path:
     path = host_root / "aimipay-install-next-steps.md"
     lines = [
@@ -501,6 +535,20 @@ def _write_next_steps_markdown(host_root: Path, report: dict[str, Any]) -> Path:
                 lines.append(f"  example: `{item['example']}`")
             if item.get("note"):
                 lines.append(f"  note: {item['note']}")
+    if report.get("post_install_check"):
+        lines.extend(
+            [
+                "",
+                "## Post-Install Self Check",
+                f"- ok: {report['post_install_check'].get('ok')}",
+                f"- report: `{report.get('post_install_check_path')}`",
+            ]
+        )
+        failed = report["post_install_check"].get("failed") or []
+        if failed:
+            lines.append("- failed checks:")
+            for item in failed:
+                lines.append(f"  - `{item.get('name')}`: {item.get('detail')}")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path

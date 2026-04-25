@@ -37,6 +37,7 @@ def verify_agent_installation(
     marketplace_path = layout["marketplace_path"]
     connector_path = layout["connector_root"] / "connector-package.json"
     core_path = layout["connector_root"] / "aimipay-agent-core.json"
+    capability_manifest_path = layout["connector_root"] / "aimipay.capabilities.json"
 
     checks = []
     details: dict[str, Any] = {}
@@ -56,8 +57,29 @@ def verify_agent_installation(
             [
                 _check("connector_installed", connector_path.exists(), str(connector_path)),
                 _check("agent_core_installed", core_path.exists(), str(core_path)),
+                _check("capability_manifest_installed", capability_manifest_path.exists(), str(capability_manifest_path)),
             ]
         )
+        if capability_manifest_path.exists():
+            capability_manifest = json.loads(capability_manifest_path.read_text(encoding="utf-8"))
+            details["capability_manifest"] = capability_manifest
+            checks.extend(
+                [
+                    _check(
+                        "capability_manifest_schema_expected",
+                        capability_manifest.get("schema_version") == "aimipay.capabilities.v1",
+                        str(capability_manifest.get("schema_version", "")),
+                    ),
+                    _check(
+                        "capability_manifest_has_protocol_manifest_tool",
+                        any(
+                            item.get("name") == "aimipay.get_protocol_manifest"
+                            for item in capability_manifest.get("tools", [])
+                        ),
+                        "aimipay.get_protocol_manifest",
+                    ),
+                ]
+            )
 
     if plugin_mcp_path.exists():
         payload = json.loads(plugin_mcp_path.read_text(encoding="utf-8"))

@@ -23,6 +23,7 @@ def package_protocol_bundle(*, repository_root: str | Path, output_dir: str | Pa
         repo_root / "spec" / "THIRD_PARTY_IMPLEMENTER_GUIDE.md",
         repo_root / "spec" / "BUYER_IMPLEMENTER_GUIDE.md",
         repo_root / "spec" / "HOST_IMPLEMENTER_GUIDE.md",
+        repo_root / "spec" / "AI_HOST_PLAYBOOK.md",
         repo_root / "spec" / "COMPATIBILITY_POLICY.md",
         repo_root / "spec" / "CONFORMANCE_CHECKLIST.md",
     ]
@@ -45,8 +46,10 @@ def package_protocol_bundle(*, repository_root: str | Path, output_dir: str | Pa
                 "- `THIRD_PARTY_IMPLEMENTER_GUIDE.md`: implementation guidance",
                 "- `BUYER_IMPLEMENTER_GUIDE.md`: buyer-side integration guidance",
                 "- `HOST_IMPLEMENTER_GUIDE.md`: AI host and MCP integration guidance",
+                "- `AI_HOST_PLAYBOOK.md`: host-side default tool flow, skill-only behavior, and recovery actions",
                 "- `COMPATIBILITY_POLICY.md`: public compatibility commitments",
                 "- `CONFORMANCE_CHECKLIST.md`: manual validation checklist",
+                "- `aimipay.capabilities.json`: AI-facing capability manifest",
                 "",
                 "Suggested validation flow:",
                 "",
@@ -67,6 +70,8 @@ def package_protocol_bundle(*, repository_root: str | Path, output_dir: str | Pa
         "schemas_dir": str(schemas_dst),
         "documents": [doc.name for doc in docs] + ["README.md"],
     }
+    shutil.copy2(repo_root / "agent-dist" / "aimipay.capabilities.json", target_dir / "aimipay.capabilities.json")
+    report["documents"].append("aimipay.capabilities.json")
     (target_dir / "bundle-report.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return report
 

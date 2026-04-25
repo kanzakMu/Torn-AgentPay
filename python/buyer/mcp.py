@@ -21,6 +21,14 @@ class AimiPayMcpServer:
     def list_tools(self) -> list[dict[str, Any]]:
         return [
             _tool(
+                "aimipay.get_protocol_manifest",
+                "Return the AI-facing capability manifest, tool flow, decision policy, and recovery matrix.",
+                {
+                    "type": "object",
+                    "properties": {},
+                },
+            ),
+            _tool(
                 "aimipay.list_offers",
                 "List merchant capability offers for agent selection.",
                 {
@@ -314,6 +322,8 @@ class AimiPayMcpServer:
     def call_tool(self, name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
         args = arguments or {}
         adapter = self._adapter(args.get("merchant_base_url"))
+        if name == "aimipay.get_protocol_manifest":
+            return adapter.get_protocol_manifest()
         if name == "aimipay.list_offers":
             return adapter.list_offers()
         if name == "aimipay.estimate_budget":

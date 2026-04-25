@@ -117,8 +117,10 @@ def test_validate_release_artifacts_rejects_local_state_files(tmp_path: Path) ->
         "protocol-bundle/PROTOCOL_REFERENCE.md",
         "protocol-bundle/BUYER_IMPLEMENTER_GUIDE.md",
         "protocol-bundle/HOST_IMPLEMENTER_GUIDE.md",
+        "protocol-bundle/AI_HOST_PLAYBOOK.md",
         "protocol-bundle/COMPATIBILITY_POLICY.md",
         "protocol-bundle/CONFORMANCE_CHECKLIST.md",
+        "protocol-bundle/aimipay.capabilities.json",
         "seller-node/seller-node.manifest.json",
         "reference-buyer/reference-buyer.manifest.json",
         "reference-buyer/minimal-buyer-reference.py",
@@ -276,8 +278,10 @@ def test_package_protocol_bundle_materializes_release_files(tmp_path: Path) -> N
     assert (output_dir / "THIRD_PARTY_IMPLEMENTER_GUIDE.md").exists()
     assert (output_dir / "BUYER_IMPLEMENTER_GUIDE.md").exists()
     assert (output_dir / "HOST_IMPLEMENTER_GUIDE.md").exists()
+    assert (output_dir / "AI_HOST_PLAYBOOK.md").exists()
     assert (output_dir / "COMPATIBILITY_POLICY.md").exists()
     assert (output_dir / "CONFORMANCE_CHECKLIST.md").exists()
+    assert (output_dir / "aimipay.capabilities.json").exists()
     assert (output_dir / "schemas" / "aimipay.manifest.v1.schema.json").exists()
     assert (output_dir / "bundle-report.json").exists()
 

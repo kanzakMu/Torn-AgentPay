@@ -71,6 +71,7 @@ def test_mcp_server_lists_tools() -> None:
 
     assert response["id"] == "1"
     tools = response["result"]["tools"]
+    assert any(tool["name"] == "aimipay.get_protocol_manifest" for tool in tools)
     assert any(tool["name"] == "aimipay.list_offers" for tool in tools)
     assert any(tool["name"] == "aimipay.quote_budget" for tool in tools)
     assert any(tool["name"] == "aimipay.plan_purchase" for tool in tools)
@@ -138,6 +139,28 @@ def test_mcp_server_can_call_tools() -> None:
     assert estimate_payload["kind"] == "budget_quote"
     assert estimate_payload["estimated_cost_atomic"] == 750_000
     assert estimate_payload["auto_decision"]["action"] == "buy_now"
+
+
+def test_mcp_server_returns_protocol_manifest() -> None:
+    server = AimiPayMcpServer(_build_runtime())
+
+    response = server.handle_request(
+        {
+            "id": "manifest",
+            "method": "tools/call",
+            "params": {
+                "name": "aimipay.get_protocol_manifest",
+                "arguments": {},
+            },
+        }
+    )
+
+    payload = response["result"]["structuredContent"]
+    assert response["result"]["isError"] is False
+    assert payload["schema_version"] == "aimipay.capabilities.v1"
+    assert "aimipay.get_agent_state" in payload["default_flow"]
+    assert payload["error_recovery_actions"]["budget_exceeded"]["agent_action"] == "request_human_approval"
+    assert payload["host_contract"]["preserve_payment_id_for_recovery"] is True
 
 
 def test_mcp_server_returns_ai_protocol_budget_plan_and_state() -> None:

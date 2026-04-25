@@ -22,6 +22,7 @@ def install_ai_host(
     env_file: str | Path | None = None,
     run_verify: bool = True,
     run_onboarding: bool = True,
+    run_post_install_check: bool = True,
     output_json: bool = False,
 ) -> dict[str, Any]:
     report = install_agent_package(
@@ -34,6 +35,7 @@ def install_ai_host(
         env_file=env_file,
         run_verify=run_verify,
         run_onboarding=run_onboarding,
+        run_post_install_check=run_post_install_check,
         output_json=False,
     )
     host_report = {
@@ -46,6 +48,8 @@ def install_ai_host(
         "next_steps_path": report.get("next_steps_path"),
         "next_steps": report.get("next_steps", []),
         "startup_onboarding": report.get("startup_onboarding"),
+        "post_install_check_path": report.get("post_install_check_path"),
+        "post_install_check": report.get("post_install_check"),
     }
     if output_json:
         print(json.dumps(host_report, indent=2, sort_keys=True))
@@ -65,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--env-file")
     parser.add_argument("--skip-verify", action="store_true")
     parser.add_argument("--skip-onboarding", action="store_true")
+    parser.add_argument("--skip-post-install-check", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
@@ -78,6 +83,7 @@ def main(argv: list[str] | None = None) -> int:
         env_file=args.env_file,
         run_verify=not args.skip_verify,
         run_onboarding=not args.skip_onboarding,
+        run_post_install_check=not args.skip_post_install_check,
         output_json=args.json,
     )
     return 0 if report["ok"] else 1
@@ -96,6 +102,10 @@ def _format_host_report(report: dict[str, Any]) -> str:
         lines.append(f"- generated {key} config: {value}")
     if report.get("next_steps_path"):
         lines.append(f"- next steps guide: {report['next_steps_path']}")
+    if report.get("post_install_check_path"):
+        lines.append(f"- post-install check: {report['post_install_check_path']}")
+    if report.get("post_install_check"):
+        lines.append(f"- post-install check ok: {report['post_install_check'].get('ok')}")
     for item in report.get("next_steps", []):
         lines.append(f"- next action [{item['target']}]: {item['action']}")
     onboarding = report.get("startup_onboarding")

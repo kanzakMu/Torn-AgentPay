@@ -41,6 +41,8 @@ Skill-only installs include:
 Examples:
 
 ```powershell
+python <skill-path>/aimipay_skill_runner.py doctor
+python <skill-path>/aimipay_skill_runner.py protocol-manifest
 python <skill-path>/aimipay_skill_runner.py list-tools
 python <skill-path>/aimipay_skill_runner.py get-agent-state
 python <skill-path>/aimipay_skill_runner.py list-offers
@@ -51,6 +53,7 @@ python <skill-path>/aimipay_skill_runner.py recover-payment --payment-id pay_123
 ```
 
 Prefer MCP tools when available. Use the skill runner as the fallback path for skill-only installs.
+Start with `doctor` when the host only installed the skill; it returns missing runtime pieces and the next safe command.
 
 ## Installed toolchain
 
@@ -86,6 +89,7 @@ Supported hosts: `codex`, `mcp`, `claude`, `cua`, `openclaw`, `hermes`, `all`, `
 The installer writes:
 
 - `aimipay-install-report.json`: machine-readable install result.
+- `aimipay-post-install-check.json`: post-install artifact, skill doctor, manifest, and protocol smoke report.
 - `aimipay-install-next-steps.md`: human-readable host-specific next actions.
 - host config files under the generated host config directory.
 
@@ -99,10 +103,12 @@ powershell -ExecutionPolicy Bypass -File python/install_agent_from_github.ps1 -R
 
 When MCP is available, prefer these structured tools:
 
-1. `aimipay.get_agent_state` for readiness, capabilities, pending payments, and next actions.
-2. `aimipay.list_offers` for `capability_catalog`.
-3. `aimipay.quote_budget` or `aimipay.plan_purchase` before spending.
-4. `aimipay.prepare_purchase`, then `aimipay.submit_purchase`.
-5. `aimipay.get_payment_status`, `aimipay.finalize_payment`, or `aimipay.recover_payment` for lifecycle and recovery.
+1. `aimipay.get_protocol_manifest` for the stable tool flow and recovery matrix.
+2. `aimipay.get_agent_state` for readiness, capabilities, pending payments, and next actions.
+3. `aimipay.list_offers` for `capability_catalog`.
+4. `aimipay.quote_budget` or `aimipay.plan_purchase` before spending.
+5. `aimipay.prepare_purchase`, then `aimipay.submit_purchase`.
+6. `aimipay.get_payment_status`, `aimipay.finalize_payment`, or `aimipay.recover_payment` for lifecycle and recovery.
 
 All AI-facing protocol payloads use `schema_version: aimipay.agent-protocol.v1` and include `kind` plus `next_actions`.
+The host-level manifest uses `schema_version: aimipay.capabilities.v1`.

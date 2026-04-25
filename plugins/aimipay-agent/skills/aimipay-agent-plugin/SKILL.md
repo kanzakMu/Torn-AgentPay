@@ -9,10 +9,16 @@ Use the `aimipay-agent` MCP server when it is available through the local plugin
 
 ## Tooling
 
+- `aimipay.get_protocol_manifest`
+- `aimipay.get_agent_state`
 - `aimipay.list_offers`
 - `aimipay.estimate_budget`
+- `aimipay.quote_budget`
+- `aimipay.plan_purchase`
 - `aimipay.open_channel`
 - `aimipay.create_payment`
+- `aimipay.prepare_purchase`
+- `aimipay.submit_purchase`
 - `aimipay.execute_payment`
 - `aimipay.reconcile_payment`
 - `aimipay.finalize_payment`
@@ -25,3 +31,5 @@ Use the `aimipay-agent` MCP server when it is available through the local plugin
 If the plugin is missing, run:
 
 `powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target plugin --mode repo-local`
+
+Start new host sessions with `aimipay.get_protocol_manifest`, then `aimipay.get_agent_state`. Preserve payment ids and use `aimipay.list_pending_payments` after a host restart before creating replacement payments.
