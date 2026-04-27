@@ -1,34 +1,48 @@
 # Torn-AgentPay Host Installation Checklist
 
-Use this checklist when you want to wire Torn-AgentPay into a host that speaks MCP or can launch a local tool server.
+Use this checklist when wiring Torn-AgentPay into an external AI host that speaks MCP, can load a plugin, or can run a skill-only command runner.
 
-## 1. Prepare the local runtime
+## 1. Prepare Runtime
 
-- Install Python 3.11+
-- Install Node.js 20+ if you also want the local demo stack
-- Clone this repository
-- Install Python dependencies with `pip install -r python/requirements.txt`
+- Install Python 3.11+.
+- Clone this repository.
+- Install Python dependencies:
 
-Optional local readiness check:
-
-```powershell
-.venv\Scripts\python.exe -m ops_tools.install_doctor
+```bash
+cd python
+python -m pip install -r requirements.txt
 ```
 
-## 2. Choose the host target
+Optional readiness check:
 
-- Codex home-local
-  Use `python/register_codex_home_local.ps1`
-- Claude / MCP hosts
-  Start from `agent-dist/hosts/claude-desktop/claude_desktop_config.template.json`
-- Generic MCP host
-  Start from `agent-dist/hosts/generic/generic_mcp_server.template.json`
-- CUA-style host
-  Start from `agent-dist/hosts/cua/cua_mcp_config.template.json`
-- Codex-style host
-  Start from `agent-dist/hosts/codex/ONBOARDING_ADAPTER.md`
+```bash
+PYTHONPATH=. python -m ops_tools.install_doctor
+```
 
-## 3. Fill the required environment values
+Node.js 20+ is only needed for contract tests or the local demo stack.
+
+## 2. Choose Target
+
+Use the high-level installer unless you are manually authoring host config.
+
+```bash
+PYTHONPATH=. python -m ops_tools.install_ai_host --host codex --mode home-local --merchant-url https://seller.example --json
+```
+
+Target choices:
+
+- `codex`: Codex-style local host.
+- `mcp`: generic MCP host config.
+- `claude`: Claude Desktop-style config.
+- `cua`: CUA-style config.
+- `openclaw`: OpenClaw-style config.
+- `hermes`: Hermes-style config.
+- `skill`: skill-only install.
+- `all`: generate/install every supported target.
+
+## 3. Configure Environment
+
+Required values for generated host configs:
 
 - `AIMIPAY_REPOSITORY_ROOT`
 - `AIMIPAY_FULL_HOST`
@@ -40,27 +54,58 @@ Optional buyer defaults:
 - `AIMIPAY_BUYER_ADDRESS`
 - `AIMIPAY_BUYER_PRIVATE_KEY`
 
-## 4. Confirm the MCP entrypoint
+Do not publish host configs containing real private keys.
 
-Every host template should launch:
+## 4. Confirm MCP Entrypoint
 
-- command:
-  Your Python interpreter
-- args:
-  `["-m", "agent_entrypoints.aimipay_mcp_stdio"]`
+Every MCP-capable host template should launch:
 
-## 5. Validate after registration
+- command: the Python interpreter used during install
+- args: `["-m", "agent_entrypoints.aimipay_mcp_stdio"]`
 
-- For Codex installs:
-  `powershell -ExecutionPolicy Bypass -File python/register_codex_home_local.ps1 -RunDoctor`
-- For manual MCP hosts:
-  Launch the host and confirm the `aimipay-agent` MCP server is listed
-- On first connect, display either:
-  - `initialize.result.instructions`
-  - or `initialize.result.meta["aimipay/startupOnboarding"]`
-- Prefer `initialize.result.meta["aimipay/startupCard"]` when the host can render a structured first-screen card
-- Use the host-specific adapter docs under `agent-dist/hosts/*/ONBOARDING_ADAPTER.md` to map the card into each UI
-- If the host does not surface initialize metadata, call:
-  - `aimipay.get_startup_onboarding`
-- Verify the exposed tools:
-  `list_offers`, `estimate_budget`, `open_channel`, `create_payment`, `execute_payment`, `reconcile_payment`, `finalize_payment`, `get_payment_status`, `check_wallet_funding`, `create_wallet`, `run_onboarding`, `get_startup_onboarding`
+The generated config should set `PYTHONPATH` so the host can import `buyer`, `shared`, and `agent_entrypoints`.
+
+## 5. Validate After Registration
+
+Run the post-install self-check:
+
+```bash
+PYTHONPATH=. python -m ops_tools.host_post_install_check --repository-root .. --host codex --mode home-local --json
+```
+
+For manual MCP hosts:
+
+- Launch the host.
+- Confirm the `aimipay-agent` MCP server is listed.
+- On first connect, display `initialize.result.instructions` when available.
+- Prefer `initialize.result.meta["aimipay/startupCard"]` for structured onboarding UI.
+- If initialize metadata is hidden by the host, call `aimipay.get_protocol_manifest` and `aimipay.get_agent_state`.
+
+Expected core tools:
+
+- `aimipay.get_protocol_manifest`
+- `aimipay.get_agent_state`
+- `aimipay.list_offers`
+- `aimipay.quote_budget`
+- `aimipay.plan_purchase`
+- `aimipay.prepare_purchase`
+- `aimipay.submit_purchase`
+- `aimipay.get_payment_status`
+- `aimipay.finalize_payment`
+- `aimipay.list_pending_payments`
+- `aimipay.recover_payment`
+- `aimipay.check_wallet_funding`
+- `aimipay.run_onboarding`
+
+## 6. Skill-Only Fallback
+
+If the host cannot load MCP/plugin config, install the skill target and call the runner:
+
+```bash
+PYTHONPATH=. python -m ops_tools.install_ai_host --host skill --mode home-local --merchant-url https://seller.example --json
+python <skill-path>/aimipay_skill_runner.py doctor
+python <skill-path>/aimipay_skill_runner.py protocol-manifest
+python <skill-path>/aimipay_skill_runner.py get-agent-state
+```
+
+The runner is the fallback control plane for AI hosts that can only install instructions plus local files.

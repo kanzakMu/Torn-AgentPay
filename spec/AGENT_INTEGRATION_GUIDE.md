@@ -16,6 +16,22 @@ An agent should be able to:
 - recover unfinished payments
 - optionally finalize payment to a terminal state
 
+## Preferred AI-Host Flow
+
+For MCP or skill-backed AI hosts, use the protocol-first surface:
+
+1. `aimipay.get_protocol_manifest`
+2. `aimipay.get_agent_state`
+3. `aimipay.list_offers`
+4. `aimipay.quote_budget`
+5. `aimipay.plan_purchase`
+6. `aimipay.prepare_purchase`
+7. `aimipay.submit_purchase`
+8. `aimipay.finalize_payment`
+9. `aimipay.list_pending_payments` or `aimipay.recover_payment` after restart or timeout
+
+The lower-level HTTP and client methods below remain useful for SDK implementers and tests, but host integrations should prefer the protocol-first tools because they return `kind`, `schema_version`, `human_approval_required`, and `next_actions`.
+
 ## Recommended Lifecycle
 
 1. Check wallet and funding readiness

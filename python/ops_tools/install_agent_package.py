@@ -262,6 +262,10 @@ def _target_layout(*, mode: str, repo_root: Path, install_root: str | Path | Non
 
 
 def _copy_tree(source: Path, destination: Path) -> None:
+    source = source.resolve()
+    destination = destination.resolve()
+    if source == destination:
+        return
     if destination.exists():
         shutil.rmtree(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)

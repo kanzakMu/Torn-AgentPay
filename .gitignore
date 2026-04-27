@@ -31,3 +31,7 @@ python/.vendor/
 python/.dry-run/
 python/.docker-local/
 .pytest-tmp/
+
+dist-clean/
+agent-dist/generated-hosts/
+skills/*/skill-runtime.json

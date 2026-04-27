@@ -51,18 +51,23 @@ This lets the host render a first-screen action instead of making the agent gues
 
 Hosts should expose these as first-class actions when possible:
 
+- `aimipay.get_protocol_manifest`
+- `aimipay.get_agent_state`
 - `aimipay.list_offers`
-- `aimipay.estimate_budget`
+- `aimipay.quote_budget`
+- `aimipay.plan_purchase`
 - `aimipay.prepare_purchase`
 - `aimipay.submit_purchase`
-- `aimipay.confirm_purchase`
 - `aimipay.get_payment_status`
+- `aimipay.finalize_payment`
+- `aimipay.list_pending_payments`
 - `aimipay.recover_payment`
 - `aimipay.check_wallet_funding`
-- `aimipay.create_wallet`
 - `aimipay.run_onboarding`
 - `aimipay.set_merchant_url`
 - `aimipay.get_startup_onboarding`
+
+Low-level compatibility tools such as `aimipay.estimate_budget`, `aimipay.open_channel`, `aimipay.create_payment`, `aimipay.execute_payment`, and `aimipay.reconcile_payment` may still be exposed, but new host flows should prefer the protocol-first tools above because they return richer `kind`, `next_actions`, and recovery metadata.
 
 ## Recommended Host Workflow
 
@@ -71,9 +76,9 @@ Hosts should expose these as first-class actions when possible:
 3. If no seller URL is configured, prompt for one
 4. Run onboarding
 5. Discover offers
-6. Let the agent estimate cost
+6. Let the agent quote budget or build a purchase plan
 7. Let the agent prepare and submit purchase
-8. Let the agent confirm or reconcile as needed
+8. Let the agent finalize or recover as needed
 
 ## Installer Integration
 
@@ -88,8 +93,15 @@ The repository already supports local install targets for:
 
 Preferred installer entrypoint:
 
+```bash
+cd python
+PYTHONPATH=. python -m ops_tools.install_ai_host --host codex --mode home-local --merchant-url https://seller.example --json
+```
+
+Windows hosts may use the wrapper:
+
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target codex --mode home-local --merchant-url https://seller.example
+powershell -ExecutionPolicy Bypass -File python/install_ai_host.ps1 --host codex --mode home-local --merchant-url https://seller.example
 ```
 
 ## Related References

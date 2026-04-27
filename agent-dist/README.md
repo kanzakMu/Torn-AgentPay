@@ -1,12 +1,12 @@
 # Torn-AgentPay Agent Distribution
 
-This directory contains the agent-facing distribution artifacts for installing Torn-AgentPay into local AI hosts.
+This directory contains the AI-host distribution artifacts for Torn-AgentPay: connector metadata, capability manifests, host templates, and generated config output.
 
-It is intended for hosts that can load MCP servers, local skills, plugins, or connector metadata.
+The distribution is meant for hosts that can load MCP servers, local skills, plugins, or connector metadata. The protocol namespace remains `aimipay` for compatibility with the existing MCP and HTTP surface.
 
 ## Supported Targets
 
-The installer currently supports:
+Installers support:
 
 - `codex`
 - `mcp`
@@ -15,70 +15,103 @@ The installer currently supports:
 - `openclaw`
 - `hermes`
 - `all`
+- `skill`
 
-## Fast Install
+## Preferred Installer
 
-Home-local install for one host target:
+Use `install_ai_host` for external host setup.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target codex --mode home-local --merchant-url https://seller.example
-```
-
-Install every supported target:
+Windows PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File python/install_agent_package.ps1 --target all --mode home-local --merchant-url https://seller.example
+powershell -ExecutionPolicy Bypass -File python/install_ai_host.ps1 --host codex --mode home-local --merchant-url https://seller.example
 ```
 
-GitHub direct install:
+Python module form after cloning the repository:
+
+```bash
+cd python
+PYTHONPATH=. python -m ops_tools.install_ai_host --host codex --mode home-local --merchant-url https://seller.example --json
+```
+
+Install every supported host target:
+
+```bash
+cd python
+PYTHONPATH=. python -m ops_tools.install_ai_host --host all --mode home-local --merchant-url https://seller.example --json
+```
+
+Skill-only install:
+
+```bash
+cd python
+PYTHONPATH=. python -m ops_tools.install_ai_host --host skill --mode home-local --merchant-url https://seller.example --json
+```
+
+## Lower-Level Package Installer
+
+Use `install_agent_package` when you want direct control over base artifacts.
+
+```bash
+cd python
+PYTHONPATH=. python -m ops_tools.install_agent_package --target codex --mode home-local --merchant-url https://seller.example --json
+```
+
+Supported `--target` values include host targets plus `skill`, `plugin`, and `connector`.
+
+## GitHub Direct Install
+
+Windows clean-machine install:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/kanzakMu/Torn-AgentPay/main/python/install_agent_from_github.ps1 -OutFile $env:TEMP\\torn-agentpay-agent-install.ps1; & $env:TEMP\\torn-agentpay-agent-install.ps1 -RepoUrl https://github.com/kanzakMu/Torn-AgentPay.git -Target codex -MerchantUrl https://seller.example"
+powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/kanzakMu/Torn-AgentPay/main/python/install_agent_from_github.ps1 -OutFile $env:TEMP\aimipay-agent-install.ps1; & $env:TEMP\aimipay-agent-install.ps1 -RepoUrl https://github.com/kanzakMu/Torn-AgentPay.git -Host codex -MerchantUrl https://seller.example"
 ```
 
-## What the Installer Does
+For macOS/Linux, clone the repository first and use the Python module installer.
 
-The installer can:
+## What The Installer Does
 
-- copy the local skill
-- copy the local plugin
-- install connector metadata
-- generate host-ready config files
-- bind the installed host config to the Python interpreter that performed the install
-- persist seller service URLs into the generated host config
-- run post-install verification
-- run startup onboarding
+- Copies the local skill and writes `skill-runtime.json`.
+- Copies the local plugin when the target requires plugin loading.
+- Installs connector metadata and capability manifests.
+- Generates host-ready MCP/config files.
+- Binds generated configs to the Python interpreter that performed the install.
+- Persists seller service URLs into generated host config.
+- Runs artifact verification, skill doctor checks, and AI-facing protocol smoke unless skipped.
+- Writes machine-readable and human-readable install reports.
+
+Generated reports:
+
+- `aimipay-install-report.json`
+- `aimipay-post-install-check.json`
+- `aimipay-install-next-steps.md`
 
 ## Install Modes
 
-- `repo-local`
-  Copies the skill and plugin into this repository for local development.
-- `home-local`
-  Copies the skill and plugin into the local user install directories so the host can discover them immediately.
+- `repo-local`: writes artifacts inside this repository for development.
+- `home-local`: writes artifacts into local user install directories so hosts can discover them.
 
-## Generated Host Configs
+## Verify The Install
 
-Depending on the target, the installer generates ready-to-use host files for:
+Post-install self-check:
 
-- Codex package metadata
-- generic MCP hosts
-- Claude Desktop-style hosts
-- CUA-style hosts
-- OpenClaw-style hosts
-- Hermes-style hosts
-
-## Verify the Install
-
-Codex helper:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File python/register_codex_home_local.ps1 -RunDoctor
+```bash
+cd python
+PYTHONPATH=. python -m ops_tools.host_post_install_check --repository-root .. --host codex --mode home-local --json
 ```
 
-Manual verification:
+Artifact-only verification:
 
-```powershell
-.venv\Scripts\python.exe -m ops_tools.verify_agent_installation --mode home-local --json
+```bash
+cd python
+PYTHONPATH=. python -m ops_tools.verify_agent_installation --mode home-local --json
+```
+
+AI-facing protocol smoke:
+
+```bash
+cd python
+PYTHONPATH=. python -m ops_tools.ai_host_smoke --json
 ```
 
 ## Host Guides
@@ -91,12 +124,8 @@ Manual verification:
 
 ## Distribution Artifacts
 
-- agent core manifest: [`agent-dist/aimipay-agent-core.json`](./aimipay-agent-core.json)
-- connector package: [`agent-dist/connector-package.json`](./connector-package.json)
-- plugin manifest: [`plugins/aimipay-agent/.codex-plugin/plugin.json`](../plugins/aimipay-agent/.codex-plugin/plugin.json)
-- repo skill: [`skills/aimipay-agent/SKILL.md`](../skills/aimipay-agent/SKILL.md)
-
-## Notes
-
-- The protocol namespace still uses `aimipay` for compatibility with the existing MCP and HTTP surface.
-- The repository name is `Torn-AgentPay`, but many tool names, endpoint prefixes, and install flags still use `aimipay` or `merchant` for compatibility.
+- Agent core manifest: [`aimipay-agent-core.json`](./aimipay-agent-core.json)
+- Connector package: [`connector-package.json`](./connector-package.json)
+- Capability manifest: [`aimipay.capabilities.json`](./aimipay.capabilities.json)
+- Plugin manifest: [`../plugins/aimipay-agent/.codex-plugin/plugin.json`](../plugins/aimipay-agent/.codex-plugin/plugin.json)
+- Repo skill: [`../skills/aimipay-agent/SKILL.md`](../skills/aimipay-agent/SKILL.md)

@@ -8,20 +8,32 @@ Agents should not need to manually assemble low-level HTTP payloads, digest rule
 
 ## Recommended Tool Names
 
+Protocol-first tools for new host integrations:
+
+- `aimipay.get_protocol_manifest`
+- `aimipay.get_agent_state`
 - `aimipay.list_offers`
-- `aimipay.estimate_budget`
-- `aimipay.open_channel`
-- `aimipay.create_payment`
-- `aimipay.execute_payment`
-- `aimipay.reconcile_payment`
+- `aimipay.quote_budget`
+- `aimipay.plan_purchase`
+- `aimipay.prepare_purchase`
+- `aimipay.submit_purchase`
 - `aimipay.finalize_payment`
 - `aimipay.get_payment_status`
 - `aimipay.list_pending_payments`
 - `aimipay.recover_payment`
 - `aimipay.check_wallet_funding`
-- `aimipay.create_wallet`
 - `aimipay.run_onboarding`
 - `aimipay.get_startup_onboarding`
+
+Compatibility tools that may remain available for lower-level flows:
+
+- `aimipay.estimate_budget`
+- `aimipay.open_channel`
+- `aimipay.create_payment`
+- `aimipay.execute_payment`
+- `aimipay.reconcile_payment`
+- `aimipay.create_wallet`
+- `aimipay.set_merchant_url`
 
 ## Tool Semantics
 
@@ -31,7 +43,72 @@ Agents should not need to manually assemble low-level HTTP payloads, digest rule
   - merchant base URL
 - Output:
   - list of offers
-  - `next_step = estimate_budget`
+  - `next_step = quote_budget`
+
+### `aimipay.quote_budget`
+
+- Input:
+  - `capability_id`
+  - optional `expected_units`
+  - optional `budget_limit_atomic`
+- Output:
+  - `kind = budget_quote`
+  - evaluated offer
+  - estimated total cost
+  - `human_approval_required`
+  - `auto_decision`
+  - `next_actions`
+
+### `aimipay.plan_purchase`
+
+- Input:
+  - optional `capability_id`
+  - optional `capability_type`
+  - optional `expected_units`
+  - optional `budget_limit_atomic`
+- Output:
+  - `kind = purchase_plan`
+  - selected offer
+  - budget decision
+  - no payment side effects
+  - `next_actions`
+
+### `aimipay.prepare_purchase`
+
+- Input:
+  - selected offer or route details
+  - optional deposit
+  - optional ttl
+- Output:
+  - prepared channel/session data
+  - `next_step = submit_purchase`
+
+### `aimipay.submit_purchase`
+
+- Input:
+  - prepared purchase data
+  - request body
+  - `idempotency_key`
+- Output:
+  - `kind = payment_state`
+  - payment id
+  - lifecycle status
+  - `next_actions`
+
+### `aimipay.finalize_payment`
+
+- Input:
+  - `payment_id`
+  - optional `max_attempts`
+  - optional `execute_if_needed`
+- Output:
+  - terminal or latest payment state after execute/reconcile attempts
+  - `next_step`
+  - `safe_to_retry`
+
+## Compatibility Tool Semantics
+
+These tools are retained for lower-level clients. New hosts should prefer `quote_budget`, `plan_purchase`, `prepare_purchase`, `submit_purchase`, and `finalize_payment`.
 
 ### `aimipay.estimate_budget`
 
