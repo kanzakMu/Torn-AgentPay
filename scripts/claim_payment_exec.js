@@ -21,6 +21,7 @@ async function main() {
   const tronWeb = createTronWeb({ fullHost, privateKey: sellerPrivateKey });
   const artifact = loadArtifact("AimiMicropayChannel.sol", "AimiMicropayChannel");
   const contract = await tronWeb.contract(artifact.abi, plan.contract_address);
+  const feeLimit = Number(plan.fee_limit || process.env.FEE_LIMIT || 2_000_000_000);
 
   const buyerAddress = plan.buyer_address || TronWeb.address.fromPrivateKey(buyerPrivateKey);
   const sellerAddress = plan.seller_address || tronWeb.defaultAddress.base58;
@@ -68,7 +69,7 @@ async function main() {
       requestDigest,
       buyerSignature,
     )
-    .send();
+    .send({ feeLimit });
 
   return {
     tx_id: txId,

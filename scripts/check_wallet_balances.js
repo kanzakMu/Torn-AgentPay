@@ -12,6 +12,7 @@ async function main() {
   }
 
   const tronWeb = createTronWeb({ fullHost: plan.full_host });
+  tronWeb.setAddress(plan.buyer_address);
   const result = {
     full_host: plan.full_host,
     buyer_address: plan.buyer_address,

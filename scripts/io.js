@@ -40,7 +40,7 @@ function loadPlan() {
   if (!planFile) {
     throw new Error("missing AIMICROPAY_PLAN_FILE");
   }
-  return JSON.parse(fs.readFileSync(planFile, "utf8"));
+  return JSON.parse(fs.readFileSync(planFile, "utf8").replace(/^\uFEFF/, ""));
 }
 
 function createTronWeb({ fullHost, privateKey }) {
