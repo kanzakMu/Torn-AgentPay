@@ -1,0 +1,17 @@
+{
+  "bundle": "aimipay.protocol-bundle.v1",
+  "documents": [
+    "PROTOCOL_REFERENCE.md",
+    "discovery.md",
+    "THIRD_PARTY_IMPLEMENTER_GUIDE.md",
+    "BUYER_IMPLEMENTER_GUIDE.md",
+    "HOST_IMPLEMENTER_GUIDE.md",
+    "AI_HOST_PLAYBOOK.md",
+    "COMPATIBILITY_POLICY.md",
+    "CONFORMANCE_CHECKLIST.md",
+    "README.md",
+    "aimipay.capabilities.json"
+  ],
+  "output_dir": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-bundle",
+  "schemas_dir": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-bundle\\schemas"
+}

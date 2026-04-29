@@ -9,9 +9,24 @@ import seller.settlement as settlement_module
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from seller import GatewaySettlementConfig, TronSettlementExecution, install_sellable_capability
+from seller import (
+    AimiPayFacilitator,
+    GatewaySettlementConfig,
+    HostedMerchant,
+    SqliteHostedGatewayRegistry,
+    TronSettlementExecution,
+    WebhookDeliveryWorker,
+    hosted_api_key_hash,
+    install_facilitator,
+    install_hosted_gateway,
+    install_sellable_capability,
+)
 from seller.gateway import GatewayConfig, install_gateway
+from seller.x402_compat import decode_x402_payment, encode_x402_payment
 from shared import CapabilityBudgetHint, MerchantPlan, MerchantRoute, PaymentRecord
+from shared import create_intent_mandate, create_payment_mandate, verify_mandate_signature
+from examples.coding_agent_paid_flow_demo import run_demo as run_coding_agent_paid_flow_demo
+from examples.hosted_gateway_app import build_app as build_hosted_gateway_example_app
 
 
 def _build_app() -> tuple[TestClient, object]:
@@ -466,6 +481,362 @@ def test_ops_agent_status_returns_ai_readable_summary() -> None:
     assert payload["payments"]["status_counts"]["authorized"] == 1
     actions = {item["action"] for item in payload["next_actions"]}
     assert "recover_or_finalize_pending_payments" in actions
+
+
+def test_registry_and_http402_conformance_are_agent_readable() -> None:
+    client, _ = _build_app()
+
+    registry_response = client.get("/_aimipay/registry/capabilities")
+    conformance_response = client.get("/_aimipay/protocol/http402-conformance")
+    mandate_response = client.get("/_aimipay/protocol/agentic-commerce-mandate-template")
+
+    assert registry_response.status_code == 200
+    registry = registry_response.json()
+    assert registry["schema_version"] == "aimipay.capability-registry.v1"
+    assert registry["capabilities"][0]["capability_id"] == "research-web-search"
+    assert registry["capabilities"][0]["payment"]["protocol"] == "aimipay.http402.v1"
+    assert registry["capabilities"][0]["agent_decision"]["auto_purchase_allowed"] is True
+
+    assert conformance_response.status_code == 200
+    conformance = conformance_response.json()
+    assert conformance["schema_version"] == "aimipay.http402-conformance.v1"
+    assert "X-PAYMENT" in conformance["headers"]["request"]
+    assert conformance["resource_binding"]["minimum_amount_atomic_enforced"] is True
+    assert conformance["compatibility_modes"]["x402_style"]["enabled"] is True
+
+    assert mandate_response.status_code == 200
+    mandate = mandate_response.json()
+    assert mandate["schema_version"] == "aimipay.agentic-commerce-mandate-template.v1"
+    assert "max_amount_atomic" in mandate["required_fields"]
+
+
+def test_ops_billing_summary_and_receipts_are_machine_readable() -> None:
+    client, runtime = _build_app()
+    runtime.record_payment(
+        PaymentRecord(
+            payment_id="pay_bill_1",
+            route_path="/tools/research",
+            amount_atomic=250_000,
+            buyer_address="TRX_BUYER",
+            channel_id="channel_bill_1",
+            request_deadline=int(time.time()) + 300,
+            expires_at=int(time.time()) + 600,
+            status="settled",
+            tx_id="0xsettled",
+            settled_at=1_700_000_000,
+            confirmed_at=1_700_000_001,
+        )
+    )
+    runtime.record_payment(
+        PaymentRecord(
+            payment_id="pay_bill_2",
+            route_path="/tools/research",
+            amount_atomic=250_000,
+            buyer_address="TRX_BUYER",
+            channel_id="channel_bill_2",
+            request_deadline=int(time.time()) + 300,
+            expires_at=int(time.time()) + 600,
+            status="authorized",
+        )
+    )
+
+    summary_response = client.get("/_aimipay/ops/billing/summary")
+    receipts_response = client.get("/_aimipay/ops/receipts", params={"status_filter": "settled"})
+
+    assert summary_response.status_code == 200
+    summary = summary_response.json()
+    assert summary["schema_version"] == "aimipay.billing-summary.v1"
+    assert summary["payments_count"] == 2
+    assert summary["totals"]["settled_atomic"] == 250_000
+    assert summary["totals"]["authorized_atomic"] == 250_000
+    assert summary["routes"][0]["route_path"] == "/tools/research"
+
+    assert receipts_response.status_code == 200
+    receipts = receipts_response.json()
+    assert receipts["schema_version"] == "aimipay.receipt-list.v1"
+    assert receipts["count"] == 1
+    assert receipts["receipts"][0]["payment_id"] == "pay_bill_1"
+    assert receipts["receipts"][0]["tx_id"] == "0xsettled"
+    assert receipts["receipts"][0]["receipt_hash"]
+
+    statement_response = client.get("/_aimipay/ops/billing/statement")
+    payout_response = client.get("/_aimipay/ops/payouts/report")
+
+    assert statement_response.status_code == 200
+    statement = statement_response.json()
+    assert statement["schema_version"] == "aimipay.billing-statement.v1"
+    assert statement["payments"]["gross_settled_atomic"] == 250_000
+    assert statement["statement_hash"]
+
+    assert payout_response.status_code == 200
+    payout = payout_response.json()
+    assert payout["schema_version"] == "aimipay.payout-report.v1"
+    assert payout["net_payout_atomic"] == 250_000
+
+
+def test_webhook_outbox_records_payment_lifecycle_events() -> None:
+    app = FastAPI()
+    install_gateway(
+        app,
+        GatewayConfig(
+            service_name="Research Copilot",
+            service_description="Pay-per-use research and market data",
+            seller_address="0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+            contract_address="0x1000000000000000000000000000000000000001",
+            token_address="0x2000000000000000000000000000000000000002",
+            webhook_urls=["https://merchant.example/webhooks/aimipay"],
+            webhook_secret="webhook-secret",
+            routes=[MerchantRoute(path="/tools/research", method="POST", price_atomic=250_000)],
+        ),
+    )
+    client = TestClient(app)
+    create_response = client.post(
+        "/_aimipay/payment-intents",
+        json={
+            "route_path": "/tools/research",
+            "buyer_address": "TRX_BUYER",
+            "channel_id": "channel_webhook_1",
+            "voucher_nonce": 1,
+            "expires_at": int(time.time()) + 600,
+            "request_deadline": int(time.time()) + 300,
+        },
+    )
+    payment_id = create_response.json()["payment_id"]
+    client.post(
+        f"/_aimipay/ops/payments/{payment_id}/action",
+        json={"action": "mark_settled", "note": "verified against tx", "tx_id": "0xwebhook"},
+    )
+
+    response = client.get("/_aimipay/ops/webhooks/outbox")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["schema_version"] == "aimipay.webhook-outbox.v1"
+    assert payload["count"] == 2
+    assert payload["events"][0]["type"] == "payment.intent_created"
+    assert payload["events"][1]["type"] == "payment.settled"
+    assert payload["events"][1]["delivery"]["signed"] is True
+    assert payload["events"][1]["signature"].startswith("sha256=")
+
+
+def test_hosted_gateway_exposes_multi_tenant_catalog_and_protected_admin_summary() -> None:
+    app = FastAPI()
+    install_hosted_gateway(
+        app,
+        [
+            HostedMerchant(
+                merchant_id="research",
+                api_key_sha256=hosted_api_key_hash("merchant-secret"),
+                config=GatewayConfig(
+                    service_name="Research Copilot",
+                    service_description="Pay-per-use research",
+                    seller_address="TRX_SELLER_A",
+                    contract_address="TRX_CONTRACT",
+                    token_address="TRX_USDT",
+                    routes=[
+                        MerchantRoute(
+                            path="/tools/research",
+                            method="POST",
+                            price_atomic=250_000,
+                            capability_id="research-web-search",
+                            capability_type="web_search",
+                        )
+                    ],
+                ),
+            ),
+            HostedMerchant(
+                merchant_id="coding",
+                config=GatewayConfig(
+                    service_name="Coding Toolsmith",
+                    service_description="Paid coding tools",
+                    seller_address="TRX_SELLER_B",
+                    contract_address="TRX_CONTRACT",
+                    token_address="TRX_USDT",
+                    routes=[
+                        MerchantRoute(
+                            path="/tools/code-review",
+                            method="POST",
+                            price_atomic=400_000,
+                            capability_id="coding-agent-code-review",
+                            capability_type="code_review",
+                        )
+                    ],
+                ),
+            ),
+        ],
+    )
+    client = TestClient(app)
+
+    catalog = client.get("/_aimipay/hosted/merchants").json()
+    marketplace = client.get("/_aimipay/marketplace/capabilities").json()
+    denied = client.get("/_aimipay/hosted/merchants/research/admin-summary")
+    allowed = client.get(
+        "/_aimipay/hosted/merchants/research/admin-summary",
+        headers={"X-AimiPay-Merchant-Key": "merchant-secret"},
+    )
+
+    assert catalog["schema_version"] == "aimipay.hosted-merchant-catalog.v1"
+    assert catalog["merchant_count"] == 2
+    assert marketplace["schema_version"] == "aimipay.marketplace-capability-index.v1"
+    assert {item["merchant_id"] for item in marketplace["capabilities"]} == {"research", "coding"}
+    assert denied.status_code == 401
+    assert allowed.status_code == 200
+    assert allowed.json()["schema_version"] == "aimipay.hosted-admin-summary.v1"
+
+
+def test_hosted_gateway_example_app_exposes_marketplace_and_merchant_manifests() -> None:
+    app = build_hosted_gateway_example_app()
+    client = TestClient(app)
+
+    root = client.get("/")
+    merchants = client.get("/_aimipay/hosted/merchants")
+    marketplace = client.get("/_aimipay/marketplace/capabilities")
+    manifest = client.get("/merchants/research/.well-known/aimipay.json")
+    denied = client.get("/_aimipay/hosted/merchants/research/admin-summary")
+    allowed = client.get(
+        "/_aimipay/hosted/merchants/research/admin-summary",
+        headers={"X-AimiPay-Merchant-Key": "research-secret"},
+    )
+
+    assert root.status_code == 200
+    assert merchants.json()["merchant_count"] == 2
+    assert marketplace.json()["capability_count"] == 2
+    assert manifest.json()["service_name"] == "Research Copilot"
+    assert denied.status_code == 401
+    assert allowed.status_code == 200
+
+
+def test_sqlite_hosted_registry_persists_merchant_config(tmp_path) -> None:
+    sqlite_path = tmp_path / "hosted.db"
+    registry = SqliteHostedGatewayRegistry(str(sqlite_path))
+    registry.add_merchant(
+        HostedMerchant(
+            merchant_id="research",
+            api_key_sha256=hosted_api_key_hash("merchant-secret"),
+            config=GatewayConfig(
+                service_name="Research Copilot",
+                service_description="Pay-per-use research",
+                seller_address="TRX_SELLER",
+                contract_address="TRX_CONTRACT",
+                token_address="TRX_USDT",
+                routes=[MerchantRoute(path="/tools/research", price_atomic=250_000)],
+            ),
+        )
+    )
+
+    restored = SqliteHostedGatewayRegistry(str(sqlite_path))
+
+    assert restored.get("research").config.service_name == "Research Copilot"
+    assert restored.get("research").api_key_sha256 == hosted_api_key_hash("merchant-secret")
+
+
+def test_x402_header_helpers_and_facilitator_verify_settle() -> None:
+    client, runtime = _build_app()
+    app = client.app
+    install_facilitator(app, runtime)
+    runtime.record_payment(
+        PaymentRecord(
+            payment_id="pay_facilitator_1",
+            route_path="/tools/research",
+            request_path="/tools/research",
+            amount_atomic=250_000,
+            status="settled",
+            tx_id="0xfacilitated",
+        )
+    )
+    encoded = encode_x402_payment({"payment_id": "pay_facilitator_1"})
+
+    assert decode_x402_payment(encoded)["payment_id"] == "pay_facilitator_1"
+
+    verify_response = client.post(
+        "/_aimipay/facilitator/verify",
+        json={"payment": encoded, "resource": "/tools/research", "amount_atomic": 250_000},
+    )
+    settle_response = client.post("/_aimipay/facilitator/settle", json={"payment": encoded})
+
+    assert verify_response.status_code == 200
+    assert verify_response.json()["valid"] is True
+    assert settle_response.status_code == 200
+    assert settle_response.json()["payment"]["success"] is True
+    assert settle_response.json()["payment"]["paymentId"] == "pay_facilitator_1"
+
+
+def test_webhook_delivery_worker_records_attempts() -> None:
+    app = FastAPI()
+    runtime = install_gateway(
+        app,
+        GatewayConfig(
+            service_name="Research Copilot",
+            service_description="Pay-per-use research",
+            seller_address="TRX_SELLER",
+            contract_address="TRX_CONTRACT",
+            token_address="TRX_USDT",
+            webhook_urls=["https://merchant.example/webhook"],
+            routes=[MerchantRoute(path="/tools/research", price_atomic=250_000)],
+        ),
+    )
+    runtime.record_payment(
+        PaymentRecord(
+            payment_id="pay_webhook_delivery_1",
+            route_path="/tools/research",
+            amount_atomic=250_000,
+            status="settled",
+        )
+    )
+    runtime._record_webhook_event("payment.settled", runtime.get_payment("pay_webhook_delivery_1"))
+
+    class FakeHttpClient:
+        def post(self, target, json):
+            return type("Response", (), {"status_code": 204})()
+
+    report = WebhookDeliveryWorker(runtime=runtime, http_client=FakeHttpClient()).deliver_pending()
+
+    assert report["schema_version"] == "aimipay.webhook-delivery-report.v1"
+    assert report["attempt_count"] == 1
+    assert runtime.webhook_outbox[0]["delivery_attempts"][0]["ok"] is True
+
+
+def test_mandates_can_be_signed_verified_and_bound_to_payment() -> None:
+    secret = "mandate-secret"
+    intent = create_intent_mandate(
+        buyer_address="TRX_BUYER",
+        merchant_base_url="https://merchant.example",
+        capability_id="research-web-search",
+        max_amount_atomic=300_000,
+        expires_at=int(time.time()) + 600,
+        secret=secret,
+    )
+    payment = create_payment_mandate(
+        intent_mandate=intent,
+        payment_id="pay_mandate_1",
+        seller_address="TRX_SELLER",
+        route_path="/tools/research",
+        amount_atomic=250_000,
+        expires_at=int(time.time()) + 300,
+        secret=secret,
+    )
+
+    assert verify_mandate_signature(intent.model_dump(mode="json"), secret=secret, signature=intent.signature)
+    assert verify_mandate_signature(payment.model_dump(mode="json"), secret=secret, signature=payment.signature)
+    assert payment.intent_mandate_id == intent.mandate_id
+    with pytest.raises(ValueError, match="exceeds"):
+        create_payment_mandate(
+            intent_mandate=intent,
+            payment_id="pay_mandate_2",
+            seller_address="TRX_SELLER",
+            route_path="/tools/research",
+            amount_atomic=400_000,
+            expires_at=int(time.time()) + 300,
+        )
+
+
+def test_coding_agent_paid_flow_demo_runs_end_to_end() -> None:
+    result = run_coding_agent_paid_flow_demo()
+
+    assert result["schema_version"] == "aimipay.demo.coding-agent-paid-flow.v1"
+    assert result["resource"]["kind"] == "code_review_result"
+    assert result["payment_response"]["status"] == "settled"
+    assert result["payment_response"]["route_path"] == "/tools/code-review"
 
 
 def test_ops_payment_action_can_mark_manual_settlement() -> None:
@@ -1084,3 +1455,194 @@ def test_install_sellable_capability_publish_api_and_mcp_tool() -> None:
     assert routes[1]["usage_unit"] == "tool_call"
     assert "mcp" in routes[1]["capability_tags"]
     assert routes[1]["capability_id"] == "mcp_tool-mcp-browser-search"
+
+
+def test_paid_api_returns_http402_payment_requirements_until_paid() -> None:
+    app = FastAPI()
+    runtime = install_sellable_capability(
+        app,
+        service_name="Research Copilot",
+        service_description="Pay-per-use research and market data",
+        seller_address="TRX_SELLER",
+        contract_address="TRX_CONTRACT",
+        token_address="TRX_USDT",
+        chain_id=31337,
+    )
+
+    @runtime.paid_api(
+        path="/tools/research",
+        price_atomic=250_000,
+        capability_type="web_search",
+        capability_id="research-web-search",
+        description="Paid research API",
+    )
+    def research_tool(body: dict) -> dict:
+        return {"ok": True, "query": body.get("query")}
+
+    client = TestClient(app)
+
+    response = client.post("/tools/research", json={"query": "agent payments"})
+
+    assert response.status_code == 402
+    assert response.headers["payment-required"] == "true"
+    payload = response.json()
+    assert payload["schema_version"] == "aimipay.http402.v1"
+    assert payload["kind"] == "payment_required"
+    assert payload["x402_compat"]["request_header"] == "X-PAYMENT"
+    requirement = payload["accepts"][0]
+    assert requirement["scheme"] == "aimipay-tron-v1"
+    assert requirement["chain"] == "tron"
+    assert requirement["chain_id"] == 31337
+    assert requirement["asset"] == "TRX_USDT"
+    assert requirement["pay_to"] == "TRX_SELLER"
+    assert requirement["amount_atomic"] == 250_000
+    assert requirement["resource"].endswith("/tools/research")
+    assert requirement["capability_id"] == "research-web-search"
+    assert requirement["extra"]["payment_intents_url"].endswith("/_aimipay/payment-intents")
+    assert payload["next_actions"][0]["tool"] == "aimipay.quote_budget"
+
+
+def test_paid_api_rejects_unsettled_payment_and_suggests_finalize() -> None:
+    app = FastAPI()
+    runtime = install_sellable_capability(
+        app,
+        service_name="Research Copilot",
+        service_description="Pay-per-use research and market data",
+        seller_address="TRX_SELLER",
+        contract_address="TRX_CONTRACT",
+        token_address="TRX_USDT",
+    )
+
+    @runtime.paid_api(path="/tools/research", price_atomic=250_000, capability_type="web_search")
+    def research_tool() -> dict:
+        return {"ok": True}
+
+    runtime.gateway.record_payment(
+        PaymentRecord(
+            payment_id="pay_pending",
+            amount_atomic=250_000,
+            status="submitted",
+            buyer_address="TRX_BUYER",
+            seller_address="TRX_SELLER",
+            route_path="/tools/research",
+        )
+    )
+    client = TestClient(app)
+
+    response = client.post("/tools/research", headers={"X-AIMIPAY-PAYMENT-ID": "pay_pending"})
+
+    assert response.status_code == 402
+    payload = response.json()
+    assert payload["error"] == "payment_not_settled"
+    assert payload["payment_id"] == "pay_pending"
+    assert payload["payment_status"] == "submitted"
+    assert payload["next_actions"][0]["tool"] == "aimipay.finalize_payment"
+
+
+def test_paid_api_allows_settled_payment_with_x_payment_header() -> None:
+    app = FastAPI()
+    runtime = install_sellable_capability(
+        app,
+        service_name="Research Copilot",
+        service_description="Pay-per-use research and market data",
+        seller_address="TRX_SELLER",
+        contract_address="TRX_CONTRACT",
+        token_address="TRX_USDT",
+    )
+
+    @runtime.paid_api(path="/tools/research", price_atomic=250_000, capability_type="web_search")
+    def research_tool(body: dict) -> dict:
+        return {"ok": True, "query": body["query"]}
+
+    runtime.gateway.record_payment(
+        PaymentRecord(
+            payment_id="pay_settled",
+            amount_atomic=250_000,
+            status="settled",
+            buyer_address="TRX_BUYER",
+            seller_address="TRX_SELLER",
+            route_path="/tools/research",
+        )
+    )
+    client = TestClient(app)
+
+    response = client.post("/tools/research", headers={"X-PAYMENT": '{"payment_id":"pay_settled"}'}, json={"query": "x402"})
+
+    assert response.status_code == 200
+    assert response.json() == {"ok": True, "query": "x402"}
+    payment_response = response.headers["x-payment-response"]
+    assert '"schema_version":"aimipay.http402-payment-response.v1"' in payment_response
+    assert '"payment_id":"pay_settled"' in payment_response
+    assert '"kind":"payment_receipt"' in payment_response
+
+
+def test_paid_api_rejects_payment_bound_to_different_resource() -> None:
+    app = FastAPI()
+    runtime = install_sellable_capability(
+        app,
+        service_name="Research Copilot",
+        service_description="Pay-per-use research and market data",
+        seller_address="TRX_SELLER",
+        contract_address="TRX_CONTRACT",
+        token_address="TRX_USDT",
+    )
+
+    @runtime.paid_api(path="/tools/research", price_atomic=250_000, capability_type="web_search")
+    def research_tool() -> dict:
+        return {"ok": True}
+
+    runtime.gateway.record_payment(
+        PaymentRecord(
+            payment_id="pay_other",
+            amount_atomic=250_000,
+            status="settled",
+            buyer_address="TRX_BUYER",
+            seller_address="TRX_SELLER",
+            route_path="/tools/other",
+            request_path="/tools/other",
+        )
+    )
+    client = TestClient(app)
+
+    response = client.post("/tools/research", headers={"X-AIMIPAY-PAYMENT-ID": "pay_other"})
+
+    assert response.status_code == 402
+    payload = response.json()
+    assert payload["error"] == "payment_resource_mismatch"
+    assert payload["payment_id"] == "pay_other"
+
+
+def test_paid_api_rejects_payment_below_required_amount() -> None:
+    app = FastAPI()
+    runtime = install_sellable_capability(
+        app,
+        service_name="Research Copilot",
+        service_description="Pay-per-use research and market data",
+        seller_address="TRX_SELLER",
+        contract_address="TRX_CONTRACT",
+        token_address="TRX_USDT",
+    )
+
+    @runtime.paid_api(path="/tools/research", price_atomic=250_000, capability_type="web_search")
+    def research_tool() -> dict:
+        return {"ok": True}
+
+    runtime.gateway.record_payment(
+        PaymentRecord(
+            payment_id="pay_too_small",
+            amount_atomic=100_000,
+            status="settled",
+            buyer_address="TRX_BUYER",
+            seller_address="TRX_SELLER",
+            route_path="/tools/research",
+            request_path="/tools/research",
+        )
+    )
+    client = TestClient(app)
+
+    response = client.post("/tools/research", headers={"X-AIMIPAY-PAYMENT-ID": "pay_too_small"})
+
+    assert response.status_code == 402
+    payload = response.json()
+    assert payload["error"] == "payment_amount_insufficient"
+    assert payload["accepts"][0]["amount_atomic"] == 250_000

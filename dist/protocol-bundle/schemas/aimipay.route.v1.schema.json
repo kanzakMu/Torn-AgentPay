@@ -1,0 +1,231 @@
+{
+  "$defs": {
+    "CapabilityBudgetHint": {
+      "properties": {
+        "min_units": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Units"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "suggested_prepaid_atomic": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggested Prepaid Atomic"
+        },
+        "typical_units": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Typical Units"
+        }
+      },
+      "title": "CapabilityBudgetHint",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "auth_requirements": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Auth Requirements",
+      "type": "array"
+    },
+    "budget_hint": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CapabilityBudgetHint"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "capability_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Capability Id"
+    },
+    "capability_tags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Capability Tags",
+      "type": "array"
+    },
+    "capability_type": {
+      "default": "api",
+      "title": "Capability Type",
+      "type": "string"
+    },
+    "delivery_mode": {
+      "default": "sync",
+      "title": "Delivery Mode",
+      "type": "string"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "enabled": {
+      "default": true,
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "expected_latency_ms": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expected Latency Ms"
+    },
+    "method": {
+      "default": "POST",
+      "title": "Method",
+      "type": "string"
+    },
+    "minimum_prepaid_atomic": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Minimum Prepaid Atomic"
+    },
+    "path": {
+      "title": "Path",
+      "type": "string"
+    },
+    "price_atomic": {
+      "minimum": 0,
+      "title": "Price Atomic",
+      "type": "integer"
+    },
+    "pricing_model": {
+      "default": "fixed_per_call",
+      "title": "Pricing Model",
+      "type": "string"
+    },
+    "requires_human_approval": {
+      "default": false,
+      "title": "Requires Human Approval",
+      "type": "boolean"
+    },
+    "response_format": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "json",
+      "title": "Response Format"
+    },
+    "safe_retry_policy": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Safe Retry Policy"
+    },
+    "suggested_prepaid_atomic": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Suggested Prepaid Atomic"
+    },
+    "supports_auto_purchase": {
+      "default": true,
+      "title": "Supports Auto Purchase",
+      "type": "boolean"
+    },
+    "usage_unit": {
+      "default": "request",
+      "title": "Usage Unit",
+      "type": "string"
+    }
+  },
+  "required": [
+    "path",
+    "price_atomic"
+  ],
+  "title": "MerchantRoute",
+  "type": "object"
+}

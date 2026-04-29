@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "algorithm": {
+      "default": "secp256k1-keccak256-recoverable",
+      "title": "Algorithm",
+      "type": "string"
+    },
+    "digest": {
+      "title": "Digest",
+      "type": "string"
+    },
+    "payload_kind": {
+      "title": "Payload Kind",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "aimipay.signature-envelope.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "signature": {
+      "title": "Signature",
+      "type": "string"
+    },
+    "signed_at": {
+      "minimum": 0,
+      "title": "Signed At",
+      "type": "integer"
+    },
+    "signer_address": {
+      "title": "Signer Address",
+      "type": "string"
+    }
+  },
+  "required": [
+    "payload_kind",
+    "signer_address",
+    "digest",
+    "signed_at",
+    "signature"
+  ],
+  "title": "SignatureEnvelope",
+  "type": "object"
+}

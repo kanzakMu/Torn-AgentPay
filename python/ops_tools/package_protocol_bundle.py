@@ -57,7 +57,6 @@ def package_protocol_bundle(*, repository_root: str | Path, output_dir: str | Pa
                 "2. materialize your discover JSON",
                 "3. optionally materialize your attestation verification report",
                 "4. run `python -m ops_tools.conformance_check --manifest-file <manifest.json> --discover-file <discover.json> --attestation-file <attestation.json>`",
-                "",
             ]
         )
         + "\n",

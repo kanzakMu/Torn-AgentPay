@@ -1,0 +1,12 @@
+services:
+  torn-agentpay-seller-node:
+    build:
+      context: ../..
+      dockerfile: docker/local.Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      AIMIPAY_REPOSITORY_ROOT: /app
+      AIMIPAY_MERCHANT_PORT: "8000"
+    volumes:
+      - ../../python/.docker-local:/app/python/.docker-local

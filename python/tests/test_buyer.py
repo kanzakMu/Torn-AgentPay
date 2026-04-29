@@ -8,6 +8,7 @@ import pytest
 from buyer import (
     AgentPaymentsRuntime,
     AimiPayAgentAdapter,
+    BuyerBudgetPolicy,
     BuyerClient,
     BuyerMarket,
     MarketSelectionPolicy,
@@ -17,6 +18,7 @@ from buyer import (
     install_agent_payments,
 )
 from buyer.provisioner import build_default_tron_provisioner
+from seller import install_sellable_capability
 from seller.gateway import GatewayConfig, GatewaySettlementConfig, install_gateway
 from shared import CapabilityBudgetHint, MerchantRoute
 from shared.protocol_native import channel_id_of
@@ -73,10 +75,50 @@ def _build_gateway_app(
     return app
 
 
+class _FakeProvisioner:
+    def provision(self, plan):
+        buyer_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+        return OpenChannelExecution(
+            approve_tx_id="approve_1",
+            open_tx_id="open_1",
+            channel_id=channel_id_of(
+                buyer_address=buyer_address,
+                seller_address=plan.seller_address,
+                token_address=plan.token_address,
+                channel_salt=plan.channel_salt,
+            ),
+            buyer_address=buyer_address,
+            seller_address=plan.seller_address,
+            contract_address=plan.contract_address,
+            token_address=plan.token_address,
+            deposit_atomic=plan.deposit_atomic,
+            expires_at=plan.expires_at,
+            channel_salt=plan.channel_salt,
+        )
+
+
+class _SettlingService:
+    def __init__(self) -> None:
+        self.store = None
+
+    def execute_payment(self, payment_id: str):
+        record = self.store.get(payment_id)
+        record.status = "submitted"
+        record.tx_id = "tx_1"
+        return self.store.upsert(record)
+
+    def reconcile_payment(self, payment_id: str):
+        record = self.store.get(payment_id)
+        record.status = "settled"
+        record.confirmation_status = "confirmed"
+        record.tx_id = record.tx_id or "tx_1"
+        return self.store.upsert(record)
+
+
 def test_default_tron_provisioner_points_to_open_script() -> None:
     provisioner = build_default_tron_provisioner(repository_root=REPOSITORY_ROOT)
     assert provisioner.command == ("node", "scripts/open_channel_exec.js")
-    assert provisioner.cwd.endswith("aimicropay-tron")
+    assert Path(provisioner.cwd).resolve() == REPOSITORY_ROOT.resolve()
 
 
 def test_tron_provisioner_executes_command_and_parses_json() -> None:
@@ -120,6 +162,67 @@ def test_tron_provisioner_executes_command_and_parses_json() -> None:
     )
     assert result.open_tx_id == "open_1"
     assert result.channel_id == "channel_1"
+
+
+def test_buyer_client_handles_http402_paid_resource_end_to_end() -> None:
+    service = _SettlingService()
+    app = FastAPI()
+    runtime = install_sellable_capability(
+        app,
+        service_name="Research Copilot",
+        service_description="Pay-per-use research and market data",
+        seller_address="0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+        contract_address="0x1000000000000000000000000000000000000001",
+        token_address="0x2000000000000000000000000000000000000002",
+        chain_id=31337,
+        settlement=GatewaySettlementConfig(
+            repository_root=str(REPOSITORY_ROOT),
+            full_host="http://tron.local",
+            seller_private_key="seller_pk",
+            chain_id=31337,
+            executor_backend="local_smoke",
+        ),
+        settlement_service=service,
+    )
+    service.store = runtime.gateway.payment_store
+
+    @runtime.paid_api(
+        path="/tools/research",
+        price_atomic=250_000,
+        capability_type="web_search",
+        capability_id="research-web-search",
+    )
+    def research_tool(body: dict) -> dict:
+        return {"ok": True, "query": body["query"]}
+
+    http_client = TestClient(app, base_url="http://merchant.test")
+    client = BuyerClient(
+        merchant_base_url="http://merchant.test",
+        full_host="http://tron.local",
+        wallet=BuyerWallet(
+            address="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+            private_key="buyer_pk",
+        ),
+        provisioner=_FakeProvisioner(),
+        http_client=http_client,
+        repository_root=str(REPOSITORY_ROOT),
+    )
+
+    result = client.request_paid_resource(
+        "/tools/research",
+        json_body={"query": "x402"},
+        budget_limit_atomic=300_000,
+    )
+
+    assert result["paid"] is True
+    assert result["response"].status_code == 200
+    assert result["response"].json() == {"ok": True, "query": "x402"}
+    assert result["payment"]["status"] == "settled"
+    assert result["payment_required"]["schema_version"] == "aimipay.http402.v1"
+    assert result["payment_header"]["schema_version"] == "aimipay.payment-header.v1"
+    assert result["payment_response"]["kind"] == "payment_receipt"
+    assert result["payment_response"]["payment_id"] == result["payment"]["payment_id"]
+    assert result["payment_response"]["route_path"] == "/tools/research"
 
 
 def test_buyer_client_discovers_and_opens_channel() -> None:
@@ -815,6 +918,43 @@ def test_buyer_client_marks_budget_that_exceeds_limit_as_needs_approval() -> Non
     assert estimate["budget"]["estimated_total_atomic"] == 1_000_000
     assert estimate["decision"]["action"] == "needs_approval"
     assert estimate["decision"]["reason"] == "estimated cost exceeds budget limit"
+
+
+def test_buyer_budget_policy_can_block_or_require_approval() -> None:
+    app = _build_gateway_app()
+    http_client = TestClient(app, base_url="http://merchant.test")
+    client = BuyerClient(
+        merchant_base_url="http://merchant.test",
+        full_host="http://tron.local",
+        wallet=BuyerWallet(address="TRX_BUYER", private_key="buyer_pk"),
+        provisioner=type("NoopProvisioner", (), {"provision": lambda self, plan: None})(),
+        http_client=http_client,
+        budget_policy=BuyerBudgetPolicy(
+            policy_name="strict-agent-wallet",
+            per_purchase_limit_atomic=500_000,
+            daily_limit_atomic=900_000,
+        ),
+        spent_today_atomic=600_000,
+    )
+
+    estimate = client.estimate_capability_budget(capability_id="research-web-search")
+
+    assert estimate["decision"]["action"] == "needs_approval"
+    policy = estimate["decision"]["budget_policy"]
+    assert policy["schema_version"] == "aimipay.buyer-budget-policy-evaluation.v1"
+    assert {item["code"] for item in policy["violations"]} == {
+        "per_purchase_limit_exceeded",
+        "daily_limit_exceeded",
+    }
+
+    client.budget_policy = BuyerBudgetPolicy(
+        policy_name="blocked-seller",
+        blocked_sellers={estimate["decision"]["seller_address"]},
+    )
+    blocked = client.estimate_capability_budget(capability_id="research-web-search")
+
+    assert blocked["decision"]["action"] == "blocked"
+    assert blocked["decision"]["budget_policy"]["violations"][0]["code"] == "seller_blocked"
 
 
 def test_buyer_client_buy_capability_runs_purchase_flow() -> None:

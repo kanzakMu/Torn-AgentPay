@@ -9,6 +9,7 @@ __all__ = [
     "AimiPayAgentAdapter",
     "AimiPayMcpServer",
     "BuyerClient",
+    "BuyerBudgetPolicy",
     "BuyerMarket",
     "MarketSelectionPolicy",
     "BuyerWallet",
@@ -22,6 +23,7 @@ __all__ = [
 _EXPORT_MAP = {
     "AimiPayAgentAdapter": ("buyer.adapter", "AimiPayAgentAdapter"),
     "BuyerClient": ("buyer.client", "BuyerClient"),
+    "BuyerBudgetPolicy": ("buyer.client", "BuyerBudgetPolicy"),
     "AimiPayMcpServer": ("buyer.mcp", "AimiPayMcpServer"),
     "BuyerMarket": ("buyer.market", "BuyerMarket"),
     "MarketSelectionPolicy": ("buyer.market", "MarketSelectionPolicy"),

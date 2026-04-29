@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 
 PaymentStatus = Literal["pending", "authorized", "submitted", "settled", "failed", "expired"]
-PurchaseAction = Literal["skip", "buy_now", "needs_approval"]
+PurchaseAction = Literal["skip", "buy_now", "needs_approval", "blocked"]
 OperatorPaymentAction = Literal["mark_failed", "mark_compensated", "mark_settled"]
 
 
@@ -207,6 +207,36 @@ class CreatePaymentRequest(BaseModel):
 
 class CreatePaymentIntentRequest(CreatePaymentRequest):
     pass
+
+
+class AgentIntentMandate(BaseModel):
+    schema_version: str = "aimipay.agent-intent-mandate.v1"
+    mandate_id: str
+    buyer_address: str
+    merchant_base_url: str
+    capability_id: str
+    max_amount_atomic: int = Field(ge=0)
+    asset_symbol: str = "USDT"
+    expires_at: int = Field(ge=0)
+    human_approval_required: bool = False
+    reason: str | None = None
+    created_at: int = Field(ge=0)
+    signature: str | None = None
+
+
+class AgentPaymentMandate(BaseModel):
+    schema_version: str = "aimipay.agent-payment-mandate.v1"
+    mandate_id: str
+    intent_mandate_id: str
+    payment_id: str
+    buyer_address: str
+    seller_address: str
+    route_path: str
+    amount_atomic: int = Field(ge=0)
+    asset_symbol: str = "USDT"
+    expires_at: int = Field(ge=0)
+    created_at: int = Field(ge=0)
+    signature: str | None = None
 
 
 class PaymentLifecycleAdvice(BaseModel):

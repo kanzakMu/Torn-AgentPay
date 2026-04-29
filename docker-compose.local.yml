@@ -19,6 +19,22 @@ services:
     volumes:
       - ./python/.docker-local:/app/python/.docker-local
 
+  aimipay-hosted:
+    build:
+      context: .
+      dockerfile: docker/local.Dockerfile
+    profiles: ["hosted"]
+    command: ["python3", "-m", "uvicorn", "python.examples.hosted_gateway_app:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8001:8000"
+    environment:
+      PYTHONPATH: /app/python
+      AIMIPAY_HOSTED_SQLITE_PATH: /app/python/.docker-local/hosted-merchants.db
+      AIMIPAY_RESEARCH_MERCHANT_KEY: research-secret
+      AIMIPAY_CODING_MERCHANT_KEY: coding-secret
+    volumes:
+      - ./python/.docker-local:/app/python/.docker-local
+
   aimipay-doctor:
     build:
       context: .

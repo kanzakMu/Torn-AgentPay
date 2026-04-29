@@ -1,0 +1,583 @@
+{
+  "$defs": {
+    "CapabilityBudgetHint": {
+      "properties": {
+        "min_units": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Units"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "suggested_prepaid_atomic": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggested Prepaid Atomic"
+        },
+        "typical_units": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Typical Units"
+        }
+      },
+      "title": "CapabilityBudgetHint",
+      "type": "object"
+    },
+    "ChainInfo": {
+      "properties": {
+        "asset_address": {
+          "title": "Asset Address",
+          "type": "string"
+        },
+        "asset_decimals": {
+          "default": 6,
+          "title": "Asset Decimals",
+          "type": "integer"
+        },
+        "asset_symbol": {
+          "default": "USDT",
+          "title": "Asset Symbol",
+          "type": "string"
+        },
+        "chain": {
+          "default": "tron",
+          "title": "Chain",
+          "type": "string"
+        },
+        "chain_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chain Id"
+        },
+        "channel_scheme": {
+          "default": "tron-contract",
+          "title": "Channel Scheme",
+          "type": "string"
+        },
+        "contract_address": {
+          "title": "Contract Address",
+          "type": "string"
+        },
+        "network": {
+          "default": "nile",
+          "title": "Network",
+          "type": "string"
+        },
+        "seller_address": {
+          "title": "Seller Address",
+          "type": "string"
+        },
+        "settlement_backend": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Settlement Backend"
+        }
+      },
+      "required": [
+        "seller_address",
+        "contract_address",
+        "asset_address"
+      ],
+      "title": "ChainInfo",
+      "type": "object"
+    },
+    "MerchantPlan": {
+      "properties": {
+        "amount_atomic": {
+          "minimum": 0,
+          "title": "Amount Atomic",
+          "type": "integer"
+        },
+        "billing_interval": {
+          "default": "month",
+          "title": "Billing Interval",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "features": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Features",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "plan_id": {
+          "title": "Plan Id",
+          "type": "string"
+        },
+        "subscribe_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subscribe Path"
+        }
+      },
+      "required": [
+        "plan_id",
+        "name",
+        "amount_atomic"
+      ],
+      "title": "MerchantPlan",
+      "type": "object"
+    },
+    "MerchantRoute": {
+      "properties": {
+        "auth_requirements": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Auth Requirements",
+          "type": "array"
+        },
+        "budget_hint": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CapabilityBudgetHint"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "capability_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capability Id"
+        },
+        "capability_tags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Capability Tags",
+          "type": "array"
+        },
+        "capability_type": {
+          "default": "api",
+          "title": "Capability Type",
+          "type": "string"
+        },
+        "delivery_mode": {
+          "default": "sync",
+          "title": "Delivery Mode",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "expected_latency_ms": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Latency Ms"
+        },
+        "method": {
+          "default": "POST",
+          "title": "Method",
+          "type": "string"
+        },
+        "minimum_prepaid_atomic": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum Prepaid Atomic"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "price_atomic": {
+          "minimum": 0,
+          "title": "Price Atomic",
+          "type": "integer"
+        },
+        "pricing_model": {
+          "default": "fixed_per_call",
+          "title": "Pricing Model",
+          "type": "string"
+        },
+        "requires_human_approval": {
+          "default": false,
+          "title": "Requires Human Approval",
+          "type": "boolean"
+        },
+        "response_format": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "json",
+          "title": "Response Format"
+        },
+        "safe_retry_policy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Safe Retry Policy"
+        },
+        "suggested_prepaid_atomic": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggested Prepaid Atomic"
+        },
+        "supports_auto_purchase": {
+          "default": true,
+          "title": "Supports Auto Purchase",
+          "type": "boolean"
+        },
+        "usage_unit": {
+          "default": "request",
+          "title": "Usage Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "price_atomic"
+      ],
+      "title": "MerchantRoute",
+      "type": "object"
+    },
+    "SellerProfile": {
+      "properties": {
+        "chain_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chain Id"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        },
+        "network": {
+          "title": "Network",
+          "type": "string"
+        },
+        "proof_methods": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Proof Methods",
+          "type": "array"
+        },
+        "schema_version": {
+          "default": "aimipay.seller-profile.v1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "seller_address": {
+          "title": "Seller Address",
+          "type": "string"
+        },
+        "service_description": {
+          "title": "Service Description",
+          "type": "string"
+        },
+        "service_name": {
+          "title": "Service Name",
+          "type": "string"
+        },
+        "service_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Service Url"
+        }
+      },
+      "required": [
+        "seller_address",
+        "display_name",
+        "service_name",
+        "service_description",
+        "network"
+      ],
+      "title": "SellerProfile",
+      "type": "object"
+    },
+    "SignatureEnvelope": {
+      "properties": {
+        "algorithm": {
+          "default": "secp256k1-keccak256-recoverable",
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "digest": {
+          "title": "Digest",
+          "type": "string"
+        },
+        "payload_kind": {
+          "title": "Payload Kind",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "aimipay.signature-envelope.v1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "signature": {
+          "title": "Signature",
+          "type": "string"
+        },
+        "signed_at": {
+          "minimum": 0,
+          "title": "Signed At",
+          "type": "integer"
+        },
+        "signer_address": {
+          "title": "Signer Address",
+          "type": "string"
+        }
+      },
+      "required": [
+        "payload_kind",
+        "signer_address",
+        "digest",
+        "signed_at",
+        "signature"
+      ],
+      "title": "SignatureEnvelope",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "endpoints": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Endpoints",
+      "type": "object"
+    },
+    "kind": {
+      "default": "aimipay-merchant",
+      "title": "Kind",
+      "type": "string"
+    },
+    "manifest_signature": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SignatureEnvelope"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "plans": {
+      "items": {
+        "$ref": "#/$defs/MerchantPlan"
+      },
+      "title": "Plans",
+      "type": "array"
+    },
+    "primary_chain": {
+      "$ref": "#/$defs/ChainInfo"
+    },
+    "routes": {
+      "items": {
+        "$ref": "#/$defs/MerchantRoute"
+      },
+      "title": "Routes",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "aimipay.manifest.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "seller_profile": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SellerProfile"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "seller_profile_signature": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SignatureEnvelope"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "service_description": {
+      "title": "Service Description",
+      "type": "string"
+    },
+    "service_name": {
+      "title": "Service Name",
+      "type": "string"
+    },
+    "transport": {
+      "default": "http+aimipay",
+      "title": "Transport",
+      "type": "string"
+    },
+    "version": {
+      "default": "v1",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "service_name",
+    "service_description",
+    "primary_chain",
+    "endpoints"
+  ],
+  "title": "MerchantManifest",
+  "type": "object"
+}

@@ -1,0 +1,26 @@
+{
+  "schema_version": "torn-agentpay.seller-node.v1",
+  "kind": "seller-node-package",
+  "name": "Torn-AgentPay Seller Node",
+  "runtime": {
+    "bootstrap_command": "powershell -ExecutionPolicy Bypass -File bootstrap-seller-node.ps1",
+    "start_command": "powershell -ExecutionPolicy Bypass -File run-seller-node.ps1",
+    "default_port": 8000
+  },
+  "public_endpoints": {
+    "seller_console": "/aimipay/install",
+    "manifest": "/.well-known/aimipay.json",
+    "discover": "/_aimipay/discover",
+    "protocol_reference": "/_aimipay/protocol/reference",
+    "ops_health": "/_aimipay/ops/health"
+  },
+  "config": {
+    "env_template": ".env.seller-node.example",
+    "managed_profiles": [
+      "local",
+      "nile",
+      "mainnet",
+      "custom"
+    ]
+  }
+}

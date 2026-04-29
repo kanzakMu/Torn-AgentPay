@@ -1,0 +1,95 @@
+{
+  "artifacts": {
+    "conformance_fixtures": {
+      "files": [
+        "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\conformance-fixtures\\manifest.json",
+        "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\conformance-fixtures\\discover.json",
+        "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\conformance-fixtures\\attestation.json",
+        "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\conformance-fixtures\\purchase.json"
+      ],
+      "fixture_bundle": "torn-agentpay.conformance-fixtures.v1",
+      "output_dir": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\conformance-fixtures"
+    },
+    "protocol_bundle": {
+      "bundle": "aimipay.protocol-bundle.v1",
+      "documents": [
+        "PROTOCOL_REFERENCE.md",
+        "discovery.md",
+        "THIRD_PARTY_IMPLEMENTER_GUIDE.md",
+        "BUYER_IMPLEMENTER_GUIDE.md",
+        "HOST_IMPLEMENTER_GUIDE.md",
+        "AI_HOST_PLAYBOOK.md",
+        "COMPATIBILITY_POLICY.md",
+        "CONFORMANCE_CHECKLIST.md",
+        "README.md",
+        "aimipay.capabilities.json"
+      ],
+      "output_dir": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-bundle",
+      "schemas_dir": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-bundle\\schemas"
+    },
+    "protocol_schemas": {
+      "output_dir": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas",
+      "schema_bundle": "aimipay.protocol-schemas.v1",
+      "schemas": [
+        {
+          "filename": "aimipay.chain-info.v1.schema.json",
+          "path": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas\\aimipay.chain-info.v1.schema.json"
+        },
+        {
+          "filename": "aimipay.route.v1.schema.json",
+          "path": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas\\aimipay.route.v1.schema.json"
+        },
+        {
+          "filename": "aimipay.plan.v1.schema.json",
+          "path": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas\\aimipay.plan.v1.schema.json"
+        },
+        {
+          "filename": "aimipay.offer.v1.schema.json",
+          "path": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas\\aimipay.offer.v1.schema.json"
+        },
+        {
+          "filename": "aimipay.seller-profile.v1.schema.json",
+          "path": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas\\aimipay.seller-profile.v1.schema.json"
+        },
+        {
+          "filename": "aimipay.signature-envelope.v1.schema.json",
+          "path": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas\\aimipay.signature-envelope.v1.schema.json"
+        },
+        {
+          "filename": "aimipay.manifest.v1.schema.json",
+          "path": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas\\aimipay.manifest.v1.schema.json"
+        }
+      ]
+    },
+    "reference_buyer": {
+      "files": [
+        "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\reference-buyer\\README.md",
+        "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\reference-buyer\\reference-buyer.manifest.json",
+        "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\reference-buyer\\minimal-buyer-reference.py"
+      ],
+      "output_dir": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\reference-buyer",
+      "package_kind": "torn-agentpay-reference-buyer",
+      "repository_root": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo",
+      "schema_version": "torn-agentpay.reference-buyer-package.v1"
+    },
+    "seller_node": {
+      "files": [
+        "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\seller-node\\README.md",
+        "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\seller-node\\seller-node.manifest.json",
+        "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\seller-node\\docker-compose.seller-node.yml",
+        "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\seller-node\\.env.seller-node.example",
+        "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\seller-node\\bootstrap-seller-node.ps1",
+        "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\seller-node\\run-seller-node.ps1"
+      ],
+      "output_dir": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\seller-node",
+      "package_kind": "torn-agentpay-seller-node",
+      "repository_root": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo",
+      "schema_version": "torn-agentpay.seller-node-package.v1"
+    }
+  },
+  "bundle": "torn-agentpay.release-artifacts.v1",
+  "output_dir": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist",
+  "release_manifest": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\release-manifest.json",
+  "release_notes": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\RELEASE_NOTES.md",
+  "repository_root": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo"
+}

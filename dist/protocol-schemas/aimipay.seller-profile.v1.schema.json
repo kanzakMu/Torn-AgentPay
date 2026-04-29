@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "chain_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Chain Id"
+    },
+    "display_name": {
+      "title": "Display Name",
+      "type": "string"
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "title": "Metadata",
+      "type": "object"
+    },
+    "network": {
+      "title": "Network",
+      "type": "string"
+    },
+    "proof_methods": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Proof Methods",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "aimipay.seller-profile.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "seller_address": {
+      "title": "Seller Address",
+      "type": "string"
+    },
+    "service_description": {
+      "title": "Service Description",
+      "type": "string"
+    },
+    "service_name": {
+      "title": "Service Name",
+      "type": "string"
+    },
+    "service_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Service Url"
+    }
+  },
+  "required": [
+    "seller_address",
+    "display_name",
+    "service_name",
+    "service_description",
+    "network"
+  ],
+  "title": "SellerProfile",
+  "type": "object"
+}

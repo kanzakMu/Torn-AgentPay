@@ -4,7 +4,7 @@ import json
 import os
 import secrets
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -15,6 +15,17 @@ from .wallet import BuyerWallet
 
 
 @dataclass(slots=True)
+class BuyerBudgetPolicy:
+    policy_name: str = "default"
+    per_purchase_limit_atomic: int | None = None
+    daily_limit_atomic: int | None = None
+    trusted_sellers: set[str] = field(default_factory=set)
+    blocked_sellers: set[str] = field(default_factory=set)
+    require_approval_for_untrusted: bool = False
+    require_approval_above_atomic: int | None = None
+
+
+@dataclass(slots=True)
 class BuyerClient:
     merchant_base_url: str
     full_host: str | None
@@ -22,6 +33,8 @@ class BuyerClient:
     provisioner: TronProvisioner
     http_client: httpx.Client | None = None
     repository_root: str | None = None
+    budget_policy: BuyerBudgetPolicy | None = None
+    spent_today_atomic: int = 0
     _manifest_cache: dict | None = None
     _discover_cache: dict | None = None
 
@@ -244,6 +257,8 @@ class BuyerClient:
                 "session": None,
                 "payment": None,
             }
+        if decision["action"] == "blocked":
+            raise ValueError(decision["reason"])
         if decision["action"] == "needs_approval" and not allow_needs_approval:
             raise ValueError(decision["reason"])
 
@@ -676,6 +691,88 @@ class BuyerClient:
             executed_payment = self.finalize_payment(executed_payment["payment_id"])
         return {"session": session, "payment": executed_payment}
 
+    def request_paid_resource(
+        self,
+        path: str,
+        *,
+        method: str = "POST",
+        json_body: dict | list | None = None,
+        content: str | bytes | None = None,
+        expected_units: int | None = 1,
+        budget_limit_atomic: int | None = None,
+        allow_needs_approval: bool = False,
+        auto_finalize: bool = True,
+    ) -> dict:
+        """Call a paid HTTP resource, handle aimipay.http402.v1, pay, and retry."""
+
+        normalized_method = method.upper()
+        request_body = _request_body_for_payment(json_body=json_body, content=content)
+        first_response = self._send_resource_request(
+            path,
+            method=normalized_method,
+            json_body=json_body,
+            content=content,
+            headers=None,
+        )
+        if first_response.status_code != 402:
+            return {
+                "paid": False,
+                "payment": None,
+                "payment_required": None,
+                "response": first_response,
+                "payment_response": None,
+            }
+
+        payment_required = first_response.json()
+        if payment_required.get("schema_version") != "aimipay.http402.v1":
+            first_response.raise_for_status()
+        requirement = _select_payment_requirement(payment_required)
+        capability_id = requirement.get("capability_id")
+        if not capability_id:
+            raise ValueError("HTTP 402 payment requirement is missing capability_id")
+        prepared = self.prepare_purchase(
+            capability_id=capability_id,
+            expected_units=expected_units,
+            budget_limit_atomic=budget_limit_atomic,
+            allow_needs_approval=allow_needs_approval,
+        )
+        submitted = self.submit_purchase(
+            prepared_purchase=prepared,
+            request_body=request_body,
+            auto_execute=True,
+        )
+        payment = submitted["payment"]
+        if auto_finalize:
+            payment = self.finalize_payment(payment["payment_id"])
+        payment_header = {
+            "schema_version": "aimipay.payment-header.v1",
+            "scheme": requirement.get("scheme", "aimipay-tron-v1"),
+            "payment_id": payment["payment_id"],
+            "resource": requirement.get("resource"),
+            "amount_atomic": payment.get("amount_atomic"),
+            "status": payment.get("status"),
+        }
+        retry_response = self._send_resource_request(
+            path,
+            method=normalized_method,
+            json_body=json_body,
+            content=content,
+            headers={
+                "X-PAYMENT": json.dumps(payment_header, separators=(",", ":")),
+                "X-AIMIPAY-PAYMENT-ID": payment["payment_id"],
+            },
+        )
+        retry_response.raise_for_status()
+        payment_response = _decode_payment_response_header(retry_response.headers.get("x-payment-response"))
+        return {
+            "paid": True,
+            "payment_required": payment_required,
+            "payment": payment,
+            "payment_header": payment_header,
+            "response": retry_response,
+            "payment_response": payment_response,
+        }
+
     def _resolve_route(self, manifest: dict, *, route_path: str, method: str) -> dict:
         normalized_method = method.upper()
         for route in manifest.get("routes", []):
@@ -828,7 +925,7 @@ class BuyerClient:
             action = "buy_now"
             reason = "estimated cost is within budget"
 
-        return {
+        estimate = {
             "budget": {
                 "capability_id": offer["capability_id"],
                 "units": int(units),
@@ -850,6 +947,68 @@ class BuyerClient:
             },
             "offer": offer,
         }
+        policy_evaluation = self.evaluate_budget_policy(estimate=estimate)
+        if policy_evaluation["action"] != estimate["decision"]["action"]:
+            estimate["decision"]["action"] = policy_evaluation["action"]
+            if policy_evaluation["action"] == "blocked":
+                estimate["decision"]["reason"] = "buyer budget policy blocked this purchase"
+            else:
+                estimate["decision"]["reason"] = "buyer budget policy requires approval"
+        estimate["decision"]["budget_policy"] = policy_evaluation
+        return estimate
+
+    def evaluate_budget_policy(self, *, estimate: dict) -> dict:
+        policy = self.budget_policy
+        decision = estimate.get("decision") or {}
+        seller_address = str(decision.get("seller_address") or "")
+        estimated_total_atomic = int(decision.get("estimated_total_atomic") or 0)
+        violations: list[dict[str, object]] = []
+        if policy is not None:
+            if seller_address and seller_address in policy.blocked_sellers:
+                violations.append({"code": "seller_blocked", "severity": "block"})
+            if (
+                policy.require_approval_for_untrusted
+                and seller_address
+                and policy.trusted_sellers
+                and seller_address not in policy.trusted_sellers
+            ):
+                violations.append({"code": "seller_untrusted", "severity": "approval"})
+            if policy.per_purchase_limit_atomic is not None and estimated_total_atomic > policy.per_purchase_limit_atomic:
+                violations.append(
+                    {
+                        "code": "per_purchase_limit_exceeded",
+                        "severity": "approval",
+                        "limit_atomic": policy.per_purchase_limit_atomic,
+                    }
+                )
+            if policy.require_approval_above_atomic is not None and estimated_total_atomic > policy.require_approval_above_atomic:
+                violations.append(
+                    {
+                        "code": "approval_threshold_exceeded",
+                        "severity": "approval",
+                        "limit_atomic": policy.require_approval_above_atomic,
+                    }
+                )
+            if policy.daily_limit_atomic is not None and self.spent_today_atomic + estimated_total_atomic > policy.daily_limit_atomic:
+                violations.append(
+                    {
+                        "code": "daily_limit_exceeded",
+                        "severity": "approval",
+                        "limit_atomic": policy.daily_limit_atomic,
+                        "spent_today_atomic": self.spent_today_atomic,
+                    }
+                )
+        action = decision.get("action")
+        if any(item["severity"] == "block" for item in violations):
+            action = "blocked"
+        elif violations and action == "buy_now":
+            action = "needs_approval"
+        return {
+            "schema_version": "aimipay.buyer-budget-policy-evaluation.v1",
+            "policy_name": "none" if policy is None else policy.policy_name,
+            "action": action,
+            "violations": violations,
+        }
 
     def _http(self) -> httpx.Client:
         if self.http_client is not None:
@@ -862,6 +1021,22 @@ class BuyerClient:
 
     def _url(self, path: str) -> str:
         return urljoin(f"{self.merchant_base_url.rstrip('/')}/", path.lstrip("/"))
+
+    def _send_resource_request(
+        self,
+        path: str,
+        *,
+        method: str,
+        json_body: dict | list | None,
+        content: str | bytes | None,
+        headers: dict[str, str] | None,
+    ):
+        kwargs = {"headers": headers or {}}
+        if json_body is not None:
+            kwargs["json"] = json_body
+        elif content is not None:
+            kwargs["content"] = content
+        return self._http().request(method, self._url(path), **kwargs)
 
 
 def _session_payload(*, route_path: str, open_payload: dict, provisioning: OpenChannelExecution) -> dict:
@@ -890,3 +1065,30 @@ def _decision_rank(action: str) -> int:
 def _should_trust_env(base_url: str) -> bool:
     host = (urlparse(base_url).hostname or "").lower()
     return host not in {"127.0.0.1", "localhost", "::1"}
+
+
+def _request_body_for_payment(*, json_body: dict | list | None, content: str | bytes | None) -> str:
+    if json_body is not None:
+        return json.dumps(json_body, separators=(",", ":"), sort_keys=True)
+    if isinstance(content, bytes):
+        return content.decode("utf-8", errors="replace")
+    return content or ""
+
+
+def _select_payment_requirement(payload: dict) -> dict:
+    accepts = payload.get("accepts") or []
+    if not accepts:
+        raise ValueError("HTTP 402 payment requirement has no accepts entries")
+    for requirement in accepts:
+        if requirement.get("scheme") == "aimipay-tron-v1":
+            return requirement
+    return accepts[0]
+
+
+def _decode_payment_response_header(value: str | None) -> dict | None:
+    if not value:
+        return None
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return {"raw": value}

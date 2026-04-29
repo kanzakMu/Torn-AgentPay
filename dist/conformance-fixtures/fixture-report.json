@@ -1,0 +1,10 @@
+{
+  "files": [
+    "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\conformance-fixtures\\manifest.json",
+    "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\conformance-fixtures\\discover.json",
+    "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\conformance-fixtures\\attestation.json",
+    "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\conformance-fixtures\\purchase.json"
+  ],
+  "fixture_bundle": "torn-agentpay.conformance-fixtures.v1",
+  "output_dir": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\conformance-fixtures"
+}

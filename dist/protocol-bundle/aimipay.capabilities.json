@@ -1,0 +1,116 @@
+{
+  "agent_protocol_version": "aimipay.agent-protocol.v1",
+  "decision_actions": {
+    "buy_now": "The AI may continue automatically when the user's budget policy permits it.",
+    "needs_approval": "Ask the user before preparing or submitting payment.",
+    "skip": "Do not pay; either the route is free or no paid action is needed."
+  },
+  "default_flow": [
+    "aimipay.get_agent_state",
+    "aimipay.list_offers",
+    "aimipay.quote_budget",
+    "aimipay.plan_purchase",
+    "aimipay.prepare_purchase",
+    "aimipay.submit_purchase",
+    "aimipay.finalize_payment"
+  ],
+  "error_recovery_actions": {
+    "budget_exceeded": {
+      "agent_action": "request_human_approval",
+      "category": "budget",
+      "human_approval_required": true,
+      "safe_to_retry": true,
+      "tool": "aimipay.quote_budget"
+    },
+    "insufficient_balance": {
+      "agent_action": "ask_user_to_fund_wallet",
+      "category": "wallet",
+      "human_approval_required": true,
+      "safe_to_retry": true,
+      "tool": "aimipay.check_wallet_funding"
+    },
+    "seller_unreachable": {
+      "agent_action": "retry_or_switch_merchant",
+      "category": "merchant_connectivity",
+      "human_approval_required": false,
+      "safe_to_retry": true,
+      "tool": "aimipay.get_agent_state"
+    },
+    "settlement_pending": {
+      "agent_action": "confirm_or_finalize_payment",
+      "category": "settlement",
+      "human_approval_required": false,
+      "safe_to_retry": true,
+      "tool": "aimipay.finalize_payment"
+    },
+    "voucher_rejected": {
+      "agent_action": "rebuild_payment_authorization",
+      "category": "authorization",
+      "human_approval_required": false,
+      "safe_to_retry": true,
+      "tool": "aimipay.create_payment"
+    }
+  },
+  "host_contract": {
+    "never_replay_old_authorizations": true,
+    "preserve_payment_id_for_recovery": true,
+    "read_before_side_effects": [
+      "aimipay.get_agent_state",
+      "aimipay.quote_budget"
+    ],
+    "respect_human_approval_required": true
+  },
+  "protocol_version": "aimipay-tron-v1",
+  "purpose": "Expose AimiPay paid capability discovery, budgeting, payment lifecycle, and recovery to AI hosts.",
+  "schema_version": "aimipay.capabilities.v1",
+  "tools": [
+    {
+      "kind": "manifest",
+      "name": "aimipay.get_protocol_manifest",
+      "returns": "capability_manifest",
+      "side_effect": "read"
+    },
+    {
+      "kind": "state",
+      "name": "aimipay.get_agent_state",
+      "returns": "agent_state",
+      "side_effect": "read"
+    },
+    {
+      "kind": "capability_catalog",
+      "name": "aimipay.list_offers",
+      "returns": "capability_catalog",
+      "side_effect": "read"
+    },
+    {
+      "kind": "budget_quote",
+      "name": "aimipay.quote_budget",
+      "required": [
+        "capability_id"
+      ],
+      "returns": "budget_quote",
+      "side_effect": "read"
+    },
+    {
+      "kind": "purchase_plan",
+      "name": "aimipay.plan_purchase",
+      "returns": "purchase_plan",
+      "side_effect": "read"
+    },
+    {
+      "kind": "payment_lifecycle",
+      "name": "aimipay.finalize_payment",
+      "required": [
+        "payment_id"
+      ],
+      "returns": "payment_state",
+      "side_effect": "settlement"
+    },
+    {
+      "kind": "payment_recovery",
+      "name": "aimipay.list_pending_payments",
+      "returns": "payment_recovery",
+      "side_effect": "read"
+    }
+  ]
+}

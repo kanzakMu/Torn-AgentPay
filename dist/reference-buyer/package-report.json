@@ -1,0 +1,11 @@
+{
+  "files": [
+    "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\reference-buyer\\README.md",
+    "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\reference-buyer\\reference-buyer.manifest.json",
+    "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\reference-buyer\\minimal-buyer-reference.py"
+  ],
+  "output_dir": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\reference-buyer",
+  "package_kind": "torn-agentpay-reference-buyer",
+  "repository_root": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo",
+  "schema_version": "torn-agentpay.reference-buyer-package.v1"
+}

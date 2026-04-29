@@ -1,0 +1,34 @@
+{
+  "output_dir": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas",
+  "schema_bundle": "aimipay.protocol-schemas.v1",
+  "schemas": [
+    {
+      "filename": "aimipay.chain-info.v1.schema.json",
+      "path": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas\\aimipay.chain-info.v1.schema.json"
+    },
+    {
+      "filename": "aimipay.route.v1.schema.json",
+      "path": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas\\aimipay.route.v1.schema.json"
+    },
+    {
+      "filename": "aimipay.plan.v1.schema.json",
+      "path": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas\\aimipay.plan.v1.schema.json"
+    },
+    {
+      "filename": "aimipay.offer.v1.schema.json",
+      "path": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas\\aimipay.offer.v1.schema.json"
+    },
+    {
+      "filename": "aimipay.seller-profile.v1.schema.json",
+      "path": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas\\aimipay.seller-profile.v1.schema.json"
+    },
+    {
+      "filename": "aimipay.signature-envelope.v1.schema.json",
+      "path": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas\\aimipay.signature-envelope.v1.schema.json"
+    },
+    {
+      "filename": "aimipay.manifest.v1.schema.json",
+      "path": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\protocol-schemas\\aimipay.manifest.v1.schema.json"
+    }
+  ]
+}

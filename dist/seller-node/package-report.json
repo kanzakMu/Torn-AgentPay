@@ -1,0 +1,14 @@
+{
+  "package_kind": "torn-agentpay-seller-node",
+  "schema_version": "torn-agentpay.seller-node-package.v1",
+  "repository_root": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo",
+  "output_dir": "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\seller-node",
+  "files": [
+    "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\seller-node\\README.md",
+    "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\seller-node\\seller-node.manifest.json",
+    "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\seller-node\\docker-compose.seller-node.yml",
+    "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\seller-node\\.env.seller-node.example",
+    "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\seller-node\\bootstrap-seller-node.ps1",
+    "G:\\BaiduNetdiskDownload\\aimicropay-tron\\.pytest-tmp\\remote-repo\\dist\\seller-node\\run-seller-node.ps1"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "bundle": "torn-agentpay.release-artifacts.v1",
+  "conformance_fixture_line": "torn-agentpay.conformance-fixtures.v1",
+  "protocol_bundle_line": "aimipay.protocol-bundle.v1",
+  "protocol_schema_line": "aimipay.protocol-schemas.v1",
+  "reference_buyer_line": "torn-agentpay.reference-buyer-package.v1",
+  "release_line": "v1",
+  "seller_node_line": "torn-agentpay.seller-node-package.v1"
+}

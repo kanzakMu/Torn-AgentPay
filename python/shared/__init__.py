@@ -4,6 +4,8 @@ from .errors import AimiPayError, aimipay_error, coerce_error, error_payload
 from .models import (
     CapabilityBudgetHint,
     CapabilityOffer,
+    AgentIntentMandate,
+    AgentPaymentMandate,
     ChainInfo,
     CreatePaymentRequest,
     CreatePaymentIntentRequest,
@@ -37,12 +39,21 @@ from .protocol import (
 )
 from .protocol_native import build_payment_voucher, build_request_digest, channel_id_of, normalize_tron_address, voucher_digest
 from .network_profiles import MANAGED_NETWORK_KEYS, get_network_profile, load_network_profiles, resolve_full_host_for_network
+from .mandates import (
+    create_intent_mandate,
+    create_payment_mandate,
+    mandate_hash,
+    sign_mandate,
+    verify_mandate_signature,
+)
 
 __all__ = [
     "AimiPayError",
     "aimipay_error",
     "CapabilityBudgetHint",
     "CapabilityOffer",
+    "AgentIntentMandate",
+    "AgentPaymentMandate",
     "ChainInfo",
     "CreatePaymentIntentRequest",
     "CreatePaymentRequest",
@@ -82,6 +93,11 @@ __all__ = [
     "get_network_profile",
     "load_network_profiles",
     "payload_digest",
+    "create_intent_mandate",
+    "create_payment_mandate",
+    "mandate_hash",
+    "sign_mandate",
+    "verify_mandate_signature",
     "resolve_full_host_for_network",
     "normalize_tron_address",
     "SellerProfile",

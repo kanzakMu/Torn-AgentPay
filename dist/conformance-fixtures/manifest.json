@@ -1,0 +1,98 @@
+{
+  "_attestation": {
+    "errors": [],
+    "manifest_signed": true,
+    "manifest_verified": true,
+    "seller_profile_signed": true,
+    "seller_profile_verified": true
+  },
+  "endpoints": {
+    "agent_status": "http://seller.test/_aimipay/ops/agent-status",
+    "create_payment_intent": "http://seller.test/_aimipay/payment-intents",
+    "discover": "http://seller.test/.well-known/aimipay.json",
+    "list_pending_payments": "http://seller.test/_aimipay/payments/pending",
+    "management": "http://seller.test/_aimipay",
+    "open_channel": "http://seller.test/_aimipay/channels/open",
+    "ops_health": "http://seller.test/_aimipay/ops/health",
+    "ops_payment_action_template": "http://seller.test/_aimipay/ops/payments/{payment_id}/action",
+    "payment_status_template": "http://seller.test/_aimipay/payments/{payment_id}",
+    "protocol_reference": "http://seller.test/_aimipay/protocol/reference",
+    "reconcile_settlements": "http://seller.test/_aimipay/settlements/reconcile",
+    "recover_payments": "http://seller.test/_aimipay/payments/recover"
+  },
+  "kind": "aimipay-merchant",
+  "manifest_signature": {
+    "algorithm": "secp256k1-keccak256-recoverable",
+    "digest": "0x1bc7b86d0f81bf633c62ebdf8088abf4963a9538806deea759643ac2ae7f253e",
+    "payload_kind": "seller_manifest",
+    "schema_version": "aimipay.signature-envelope.v1",
+    "signature": "0x66d77bca4321e87ae46adadd3d4083c67b919fc0b485c7e10189342ef6d145bb5d01b5b9034075974dac9727382a56766dc78b218127dd2132ab1d39e5d9ea8f1c",
+    "signed_at": 1777440868,
+    "signer_address": "TVaEiLLej394ZxVmHZXYg3HprssbpdcsmW"
+  },
+  "plans": [],
+  "primary_chain": {
+    "asset_address": "0x2000000000000000000000000000000000000002",
+    "asset_decimals": 6,
+    "asset_symbol": "USDT",
+    "chain": "tron",
+    "chain_id": 31337,
+    "channel_scheme": "tron-contract",
+    "contract_address": "0x1000000000000000000000000000000000000001",
+    "network": "nile",
+    "seller_address": "TVaEiLLej394ZxVmHZXYg3HprssbpdcsmW",
+    "settlement_backend": "claim_script"
+  },
+  "routes": [
+    {
+      "auth_requirements": [],
+      "budget_hint": null,
+      "capability_id": "research-web-search",
+      "capability_tags": [],
+      "capability_type": "web_search",
+      "delivery_mode": "sync",
+      "description": "Fixture paid research route",
+      "enabled": true,
+      "expected_latency_ms": null,
+      "method": "POST",
+      "minimum_prepaid_atomic": null,
+      "path": "/tools/research",
+      "price_atomic": 250000,
+      "pricing_model": "fixed_per_call",
+      "requires_human_approval": false,
+      "response_format": "json",
+      "safe_retry_policy": null,
+      "suggested_prepaid_atomic": null,
+      "supports_auto_purchase": true,
+      "usage_unit": "request"
+    }
+  ],
+  "schema_version": "aimipay.manifest.v1",
+  "seller_profile": {
+    "chain_id": 31337,
+    "display_name": "Fixture Seller",
+    "metadata": {},
+    "network": "nile",
+    "proof_methods": [
+      "wallet_signature"
+    ],
+    "schema_version": "aimipay.seller-profile.v1",
+    "seller_address": "TVaEiLLej394ZxVmHZXYg3HprssbpdcsmW",
+    "service_description": "Fixture seller for protocol conformance examples.",
+    "service_name": "Fixture Seller",
+    "service_url": "http://seller.test"
+  },
+  "seller_profile_signature": {
+    "algorithm": "secp256k1-keccak256-recoverable",
+    "digest": "0xf128876cf5bff77a91d21e6e7ff7b549b45ef9f9f49c1d5f4d4a2856a4276ff2",
+    "payload_kind": "seller_profile",
+    "schema_version": "aimipay.signature-envelope.v1",
+    "signature": "0x5be3a54992d935e750003e34c7209784d804b4957ab0fba03840b37ff9e0fef70af1f875ed3cdd39f37427ffc2d800d9233496c3582b826dc858419f1f516a311c",
+    "signed_at": 1777440868,
+    "signer_address": "TVaEiLLej394ZxVmHZXYg3HprssbpdcsmW"
+  },
+  "service_description": "Fixture seller for protocol conformance examples.",
+  "service_name": "Fixture Seller",
+  "transport": "http+aimipay",
+  "version": "v1"
+}

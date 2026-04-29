@@ -178,6 +178,7 @@ def _doctor_payload(config: dict[str, Any], config_path: Path) -> dict[str, Any]
             "name": "env_file",
             "ok": env_file.exists(),
             "path": str(env_file),
+            "required": False,
         },
         {
             "name": "skill_runner",
@@ -191,8 +192,9 @@ def _doctor_payload(config: dict[str, Any], config_path: Path) -> dict[str, Any]
         },
     ]
     missing = [item for item in checks if not item["ok"]]
+    missing_required = [item for item in missing if item.get("required", True)]
     next_actions: list[dict[str, Any]] = []
-    if missing:
+    if missing_required:
         next_actions.append(
             {
                 "action": "run_onboarding",
@@ -215,9 +217,17 @@ def _doctor_payload(config: dict[str, Any], config_path: Path) -> dict[str, Any]
                 "reason": "Expose the stable tool flow and recovery matrix to the AI host.",
             }
         )
+        if missing:
+            next_actions.append(
+                {
+                    "action": "complete_optional_local_profile",
+                    "command": f'python "{runner}" get-agent-state',
+                    "reason": "Optional local profile files are absent; the skill can still report state and protocol guidance.",
+                }
+            )
     return {
         "schema_version": "aimipay.skill-doctor.v1",
-        "ok": not missing,
+        "ok": not missing_required,
         "checks": checks,
         "next_actions": next_actions,
         "available_commands": [

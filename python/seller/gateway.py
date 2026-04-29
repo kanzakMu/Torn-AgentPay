@@ -4,6 +4,8 @@ import time
 from dataclasses import dataclass, field
 import secrets
 import hashlib
+import hmac
+import json
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request, Response, status
 from .settlement import TronSettlementServiceConfig, build_default_tron_settlement_service
@@ -75,6 +77,8 @@ class GatewayConfig:
     admin_read_token: str | None = None
     admin_read_token_sha256: str | None = None
     audit_log_path: str | None = None
+    webhook_urls: list[str] = field(default_factory=list)
+    webhook_secret: str | None = None
     routes: list[MerchantRoute] = field(default_factory=list)
     plans: list[MerchantPlan] = field(default_factory=list)
     management_prefix: str = "/_aimipay"
@@ -110,6 +114,7 @@ class GatewayRuntime:
         self.settlement_service = settlement_service
         self.metrics = RuntimeMetrics()
         self.event_logger = StructuredEventLogger(audit_log_path=config.audit_log_path)
+        self.webhook_outbox: list[dict] = []
         if self.settlement_service is not None:
             if hasattr(self.settlement_service, "metrics"):
                 self.settlement_service.metrics = self.metrics
@@ -130,6 +135,11 @@ class GatewayRuntime:
 
     def discover(self, *, base_url: str | None = None) -> dict:
         manifest = self.manifest(base_url=base_url)
+        management_base_url = (
+            f"{base_url}{self.config.management_prefix.rstrip('/')}"
+            if base_url
+            else self.config.management_prefix.rstrip("/")
+        )
         return {
             "seller": self.config.seller_address,
             "chain": "tron",
@@ -154,6 +164,11 @@ class GatewayRuntime:
             "ops_health_url": manifest["endpoints"]["ops_health"],
             "agent_status_url": manifest["endpoints"]["agent_status"],
             "ops_payment_action_template": manifest["endpoints"]["ops_payment_action_template"],
+            "capability_registry_url": f"{management_base_url}/registry/capabilities",
+            "http402_conformance_url": f"{management_base_url}/protocol/http402-conformance",
+            "billing_summary_url": f"{management_base_url}/ops/billing/summary",
+            "receipts_url": f"{management_base_url}/ops/receipts",
+            "webhook_outbox_url": f"{management_base_url}/ops/webhooks/outbox",
         }
 
     def protocol_reference(self) -> dict:
@@ -261,6 +276,7 @@ class GatewayRuntime:
             route_path=stored.route_path,
             amount_atomic=stored.amount_atomic,
         )
+        self._record_webhook_event("payment.intent_created", stored)
         return stored
 
     def create_payment(self, request: CreatePaymentRequest) -> PaymentRecord:
@@ -303,6 +319,8 @@ class GatewayRuntime:
         self.metrics.incr("settlement_execute_requests_total")
         self.metrics.incr("settlement_execute_records_total", len(records))
         self._update_status_metrics(records)
+        for record in records:
+            self._record_webhook_event(f"payment.{record.status}", record)
         return records
 
     def reconcile_settlements(self, *, payment_id: str | None = None) -> list[PaymentRecord]:
@@ -323,6 +341,8 @@ class GatewayRuntime:
             self.metrics.incr("settlement_reconcile_requests_total")
             self.metrics.incr("settlement_reconcile_records_total", len(records))
             self._update_status_metrics(records)
+            for record in records:
+                self._record_webhook_event(f"payment.{record.status}", record)
             return records
         if not hasattr(self.settlement_service, "reconcile_submitted"):
             return []
@@ -330,7 +350,275 @@ class GatewayRuntime:
         self.metrics.incr("settlement_reconcile_requests_total")
         self.metrics.incr("settlement_reconcile_records_total", len(records))
         self._update_status_metrics(records)
+        for record in records:
+            self._record_webhook_event(f"payment.{record.status}", record)
         return records
+
+    def capability_registry(self) -> dict:
+        return {
+            "schema_version": "aimipay.capability-registry.v1",
+            "generated_at": int(time.time()),
+            "service": {
+                "name": self.config.service_name,
+                "description": self.config.service_description,
+                "seller_address": self.config.seller_address,
+                "network": self.config.network,
+                "asset": {
+                    "symbol": self.config.asset_symbol,
+                    "decimals": self.config.asset_decimals,
+                    "address": self.config.token_address,
+                },
+            },
+            "capabilities": [
+                self._capability_entry(route)
+                for route in self.config.routes
+                if route.enabled and route.supports_auto_purchase
+            ],
+            "plans": [plan.model_dump(mode="json") for plan in self.config.plans if plan.enabled],
+            "agent_hints": {
+                "default_decision": "auto_purchase_when_budget_allows",
+                "payment_protocols": ["aimipay.http402.v1", "aimipay.payment-intent.v1"],
+                "risk_controls": ["budget_hint", "requires_human_approval", "safe_retry_policy"],
+            },
+        }
+
+    def http402_conformance(self) -> dict:
+        return {
+            "schema_version": "aimipay.http402-conformance.v1",
+            "generated_at": int(time.time()),
+            "profile": "aimipay-http402-tron-v1",
+            "inspired_by": ["x402-http-402-payment-required", "agentic-commerce-payment-intent"],
+            "implemented": [
+                "HTTP 402 response with machine-readable payment requirements",
+                "X-PAYMENT request header",
+                "X-AIMIPAY-PAYMENT-ID fallback request header",
+                "X-PAYMENT-RESPONSE receipt header",
+                "route and request path binding",
+                "minimum amount enforcement",
+                "buyer auto-retry lifecycle",
+                "agent-readable error recovery hints",
+            ],
+            "headers": {
+                "request": ["X-PAYMENT", "X-AIMIPAY-PAYMENT-ID"],
+                "response": ["X-PAYMENT-RESPONSE"],
+            },
+            "compatibility_modes": {
+                "x402_style": {
+                    "enabled": True,
+                    "payment_required_status": 402,
+                    "payment_request_header": "X-PAYMENT",
+                    "payment_response_header": "X-PAYMENT-RESPONSE",
+                    "facilitator_api_wire_compatible": False,
+                },
+                "ap2_mandate_style": {
+                    "enabled": True,
+                    "wire_compatible_with_visa_ap2": False,
+                    "mandate_endpoint": f"{self.config.management_prefix.rstrip('/')}/protocol/agentic-commerce-mandate-template",
+                },
+            },
+            "resource_binding": {
+                "route_path_required": True,
+                "request_path_required_when_present": True,
+                "minimum_amount_atomic_enforced": True,
+            },
+            "settlement": {
+                "chain": "tron",
+                "channel_scheme": "tron-contract",
+                "asset_symbol": self.config.asset_symbol,
+            },
+            "not_yet_claimed": [
+                "coinbase-x402-wire-compatible-facilitator-api",
+                "visa-ap2-mandate-wire-format",
+            ],
+        }
+
+    def agentic_commerce_mandate_template(self) -> dict:
+        return {
+            "schema_version": "aimipay.agentic-commerce-mandate-template.v1",
+            "generated_at": int(time.time()),
+            "purpose": "Describe the fields an AI host should preserve before spending user funds.",
+            "compatibility_note": "AP2-inspired authorization object, not a Visa AP2 wire-compatible message.",
+            "required_fields": [
+                "buyer_address",
+                "merchant_base_url",
+                "capability_id",
+                "max_amount_atomic",
+                "asset_symbol",
+                "expires_at",
+                "human_approval_required",
+            ],
+            "example": {
+                "buyer_address": "TRX_BUYER",
+                "merchant_base_url": "https://merchant.example",
+                "capability_id": "coding-agent-fix",
+                "max_amount_atomic": 1_000_000,
+                "asset_symbol": self.config.asset_symbol,
+                "expires_at": int(time.time()) + 900,
+                "human_approval_required": False,
+                "reason": "User allowed the coding agent to buy one tool call under budget.",
+            },
+        }
+
+    def billing_summary(self) -> dict:
+        records = [self._touch_payment(record) for record in self.payment_store.list()]
+        totals = {
+            "authorized_atomic": 0,
+            "submitted_atomic": 0,
+            "settled_atomic": 0,
+            "failed_atomic": 0,
+            "expired_atomic": 0,
+        }
+        status_counts: dict[str, int] = {}
+        by_route: dict[str, dict] = {}
+        for record in records:
+            status_name = record.status or "unknown"
+            amount = record.amount_atomic or 0
+            status_counts[status_name] = status_counts.get(status_name, 0) + 1
+            total_key = f"{status_name}_atomic"
+            if total_key in totals:
+                totals[total_key] += amount
+            route_key = record.route_path or "unknown"
+            route_summary = by_route.setdefault(
+                route_key,
+                {
+                    "route_path": route_key,
+                    "payments_count": 0,
+                    "status_counts": {},
+                    "authorized_atomic": 0,
+                    "submitted_atomic": 0,
+                    "settled_atomic": 0,
+                    "failed_atomic": 0,
+                    "expired_atomic": 0,
+                },
+            )
+            route_summary["payments_count"] += 1
+            route_summary["status_counts"][status_name] = route_summary["status_counts"].get(status_name, 0) + 1
+            if total_key in route_summary:
+                route_summary[total_key] += amount
+        return {
+            "schema_version": "aimipay.billing-summary.v1",
+            "generated_at": int(time.time()),
+            "asset": {
+                "symbol": self.config.asset_symbol,
+                "decimals": self.config.asset_decimals,
+                "address": self.config.token_address,
+            },
+            "payments_count": len(records),
+            "status_counts": status_counts,
+            "totals": totals,
+            "routes": list(by_route.values()),
+        }
+
+    def billing_statement(
+        self,
+        *,
+        period_start: int | None = None,
+        period_end: int | None = None,
+    ) -> dict:
+        records = [self._touch_payment(record) for record in self.payment_store.list()]
+        if period_start is not None:
+            records = [record for record in records if (record.created_at or 0) >= period_start]
+        if period_end is not None:
+            records = [record for record in records if (record.created_at or 0) <= period_end]
+        settled = [record for record in records if record.status == "settled"]
+        failed = [record for record in records if record.status in {"failed", "expired"}]
+        gross_atomic = sum(record.amount_atomic or 0 for record in settled)
+        statement = {
+            "schema_version": "aimipay.billing-statement.v1",
+            "generated_at": int(time.time()),
+            "period": {
+                "start": period_start,
+                "end": period_end,
+            },
+            "merchant": {
+                "service_name": self.config.service_name,
+                "seller_address": self.config.seller_address,
+            },
+            "asset": {
+                "symbol": self.config.asset_symbol,
+                "decimals": self.config.asset_decimals,
+                "address": self.config.token_address,
+            },
+            "payments": {
+                "settled_count": len(settled),
+                "failed_or_expired_count": len(failed),
+                "gross_settled_atomic": gross_atomic,
+            },
+            "line_items": [self.payment_receipt(record) for record in records],
+        }
+        statement["statement_hash"] = _canonical_sha256(statement)
+        return statement
+
+    def payout_report(self, *, period_start: int | None = None, period_end: int | None = None) -> dict:
+        statement = self.billing_statement(period_start=period_start, period_end=period_end)
+        gross_atomic = statement["payments"]["gross_settled_atomic"]
+        report = {
+            "schema_version": "aimipay.payout-report.v1",
+            "generated_at": int(time.time()),
+            "period": statement["period"],
+            "seller_address": self.config.seller_address,
+            "asset_symbol": self.config.asset_symbol,
+            "gross_settled_atomic": gross_atomic,
+            "platform_fee_atomic": 0,
+            "net_payout_atomic": gross_atomic,
+            "source_statement_hash": statement["statement_hash"],
+        }
+        report["payout_report_hash"] = _canonical_sha256(report)
+        return report
+
+    def list_receipts(
+        self,
+        *,
+        status_filter: str | None = None,
+        route_path: str | None = None,
+        limit: int = 100,
+    ) -> dict:
+        statuses = None if status_filter is None else {item.strip() for item in status_filter.split(",") if item.strip()}
+        records = [self._touch_payment(record) for record in self.payment_store.list()]
+        if statuses is not None:
+            records = [record for record in records if record.status in statuses]
+        if route_path is not None:
+            records = [record for record in records if record.route_path == route_path]
+        records = sorted(records, key=lambda record: ((record.updated_at or 0), record.payment_id), reverse=True)
+        bounded_limit = max(1, min(limit, 500))
+        return {
+            "schema_version": "aimipay.receipt-list.v1",
+            "generated_at": int(time.time()),
+            "count": len(records[:bounded_limit]),
+            "total_matching": len(records),
+            "receipts": [self.payment_receipt(record) for record in records[:bounded_limit]],
+        }
+
+    def payment_receipt(self, record: PaymentRecord) -> dict:
+        normalized = self._touch_payment(record)
+        return {
+            "schema_version": "aimipay.receipt.v1",
+            "payment_id": normalized.payment_id,
+            "status": normalized.status,
+            "route_path": normalized.route_path,
+            "request_path": normalized.request_path,
+            "amount_atomic": normalized.amount_atomic,
+            "asset_symbol": self.config.asset_symbol,
+            "asset_decimals": self.config.asset_decimals,
+            "buyer_address": normalized.buyer_address,
+            "seller_address": normalized.seller_address,
+            "channel_id": normalized.channel_id,
+            "tx_id": normalized.tx_id,
+            "created_at": normalized.created_at,
+            "updated_at": normalized.updated_at,
+            "settled_at": normalized.settled_at,
+            "confirmed_at": normalized.confirmed_at,
+            "receipt_hash": _canonical_sha256(
+                {
+                    "payment_id": normalized.payment_id,
+                    "status": normalized.status,
+                    "route_path": normalized.route_path,
+                    "amount_atomic": normalized.amount_atomic,
+                    "tx_id": normalized.tx_id,
+                    "settled_at": normalized.settled_at,
+                }
+            ),
+        }
 
     def health_report(self) -> dict:
         checks = validate_runtime_config(self.config)
@@ -541,6 +829,7 @@ class GatewayRuntime:
             action=action.action,
             note=note,
         )
+        self._record_webhook_event(f"payment.{stored.status}", stored)
         return stored
 
     def _resolve_route_amount(self, *, route_path: str | None, method: str) -> int | None:
@@ -567,6 +856,45 @@ class GatewayRuntime:
                 retryable=normalized.error_retryable,
             )["error"]
         return payload
+
+    def _capability_entry(self, route: MerchantRoute) -> dict:
+        payload = route.model_dump(mode="json")
+        payload["payment"] = {
+            "protocol": "aimipay.http402.v1",
+            "amount_atomic": route.price_atomic,
+            "asset_symbol": self.config.asset_symbol,
+            "asset_decimals": self.config.asset_decimals,
+            "pricing_model": route.pricing_model,
+            "usage_unit": route.usage_unit,
+        }
+        payload["agent_decision"] = {
+            "auto_purchase_allowed": bool(route.supports_auto_purchase and not route.requires_human_approval),
+            "requires_human_approval": route.requires_human_approval,
+            "budget_hint": None if route.budget_hint is None else route.budget_hint.model_dump(mode="json"),
+            "safe_retry_policy": route.safe_retry_policy,
+        }
+        return payload
+
+    def _record_webhook_event(self, event_type: str, record: PaymentRecord) -> None:
+        if not self.config.webhook_urls:
+            return
+        event = {
+            "schema_version": "aimipay.webhook-event.v1",
+            "event_id": f"evt_{secrets.token_hex(16)}",
+            "type": event_type,
+            "created_at": int(time.time()),
+            "delivery": {
+                "mode": "outbox",
+                "targets": list(self.config.webhook_urls),
+                "signed": bool(self.config.webhook_secret),
+            },
+            "payment": self.serialize_payment(record),
+        }
+        if self.config.webhook_secret:
+            event["signature_algorithm"] = "hmac-sha256"
+            event["signature"] = _hmac_sha256(self.config.webhook_secret, event)
+        self.webhook_outbox.append(event)
+        del self.webhook_outbox[:-1000]
 
     def _update_status_metrics(self, records: list[PaymentRecord]) -> None:
         for record in records:
@@ -654,6 +982,57 @@ def install_gateway(
         runtime.event_logger.emit("admin_agent_status_requested", caller=_caller_host(request))
         return runtime.agent_status()
 
+    @router.get("/ops/billing/summary")
+    async def ops_billing_summary(request: Request) -> dict:
+        _require_admin_access(request, runtime.config, action="read")
+        runtime.event_logger.emit("admin_billing_summary_requested", caller=_caller_host(request))
+        return runtime.billing_summary()
+
+    @router.get("/ops/billing/statement")
+    async def ops_billing_statement(
+        request: Request,
+        period_start: int | None = None,
+        period_end: int | None = None,
+    ) -> dict:
+        _require_admin_access(request, runtime.config, action="read")
+        runtime.event_logger.emit("admin_billing_statement_requested", caller=_caller_host(request))
+        return runtime.billing_statement(period_start=period_start, period_end=period_end)
+
+    @router.get("/ops/payouts/report")
+    async def ops_payout_report(
+        request: Request,
+        period_start: int | None = None,
+        period_end: int | None = None,
+    ) -> dict:
+        _require_admin_access(request, runtime.config, action="read")
+        runtime.event_logger.emit("admin_payout_report_requested", caller=_caller_host(request))
+        return runtime.payout_report(period_start=period_start, period_end=period_end)
+
+    @router.get("/ops/receipts")
+    async def ops_receipts(
+        request: Request,
+        status_filter: str | None = None,
+        route_path: str | None = None,
+        limit: int = 100,
+    ) -> dict:
+        _require_admin_access(request, runtime.config, action="read")
+        runtime.event_logger.emit("admin_receipts_requested", caller=_caller_host(request))
+        return runtime.list_receipts(status_filter=status_filter, route_path=route_path, limit=limit)
+
+    @router.get("/ops/webhooks/outbox")
+    async def ops_webhook_outbox(request: Request, limit: int = 100) -> dict:
+        _require_admin_access(request, runtime.config, action="read")
+        runtime.event_logger.emit("admin_webhook_outbox_requested", caller=_caller_host(request))
+        bounded_limit = max(1, min(limit, 500))
+        events = runtime.webhook_outbox[-bounded_limit:]
+        return {
+            "schema_version": "aimipay.webhook-outbox.v1",
+            "generated_at": int(time.time()),
+            "count": len(events),
+            "total_buffered": len(runtime.webhook_outbox),
+            "events": events,
+        }
+
     @router.post("/ops/payments/{payment_id}/action")
     async def ops_payment_action(request: Request, payment_id: str, payload: OperatorPaymentActionRequest) -> dict:
         _require_admin_access(request, runtime.config, action="write")
@@ -667,6 +1046,18 @@ def install_gateway(
     @router.get("/protocol/reference")
     async def protocol_reference() -> dict:
         return runtime.protocol_reference()
+
+    @router.get("/protocol/http402-conformance")
+    async def protocol_http402_conformance() -> dict:
+        return runtime.http402_conformance()
+
+    @router.get("/protocol/agentic-commerce-mandate-template")
+    async def protocol_agentic_commerce_mandate_template() -> dict:
+        return runtime.agentic_commerce_mandate_template()
+
+    @router.get("/registry/capabilities")
+    async def registry_capabilities() -> dict:
+        return runtime.capability_registry()
 
     @router.post("/channels/open")
     async def open_channel(payload: OpenChannelRequest) -> dict:
@@ -765,6 +1156,19 @@ def install_gateway(
 def _as_http_exception(exc: AimiPayError) -> HTTPException:
     status_code = exc.status_code or status.HTTP_400_BAD_REQUEST
     return HTTPException(status_code=status_code, detail=error_payload(exc))
+
+
+def _canonical_sha256(payload: dict) -> str:
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _hmac_sha256(secret: str, payload: dict) -> str:
+    unsigned = dict(payload)
+    unsigned.pop("signature", None)
+    canonical = json.dumps(unsigned, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    digest = hmac.new(secret.encode("utf-8"), canonical, hashlib.sha256).hexdigest()
+    return f"sha256={digest}"
 
 
 def _require_admin_access(request: Request, config: GatewayConfig, *, action: str) -> None:

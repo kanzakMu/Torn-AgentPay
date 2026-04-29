@@ -1,8 +1,22 @@
-# Torn-AgentPay
+# AimiPay
 
-AI-facing payment infrastructure for agent applications on Tron.
+Turn any API into an agent-paid API.
 
-Torn-AgentPay lets an AI host discover paid capabilities, quote budget, decide whether a purchase is allowed, create voucher-backed payments, settle them, and recover unfinished lifecycle state. The project is built for AI applications first: the important interface is structured protocol output that an agent can read and act on, not a human dashboard.
+AimiPay lets AI hosts discover paid capabilities, enforce buyer budgets, complete HTTP 402 payments, and return receipts that merchants can reconcile. It is built for AI applications first: the important interface is structured protocol output that an agent can read and act on, not a human dashboard.
+
+## Start Here
+
+For merchants:
+
+```bash
+PYTHONPATH=python python -m ops_tools.aimipay_cli merchant init --service-name "Research Copilot"
+PYTHONPATH=python python -m ops_tools.aimipay_cli merchant verify --config aimipay.merchant.json
+PYTHONPATH=python python python/examples/coding_agent_paid_flow_demo.py
+```
+
+Read the [Merchant Quickstart](spec/MERCHANT_QUICKSTART.md) to wrap a FastAPI route with HTTP 402 payments.
+
+For external AI hosts, start with the [AI Host Playbook](spec/AI_HOST_PLAYBOOK.md) and [MCP Integration Guide](spec/MCP_INTEGRATION_GUIDE.md).
 
 ## What Is Implemented
 
@@ -12,16 +26,19 @@ Torn-AgentPay lets an AI host discover paid capabilities, quote budget, decide w
 - AI-facing protocol payloads for state, capabilities, budgets, payment lifecycle, recovery, and next-action hints.
 - MCP server and tools for external AI hosts.
 - Skill-only install path with a local runner, so hosts can use the functionality even when plugin/MCP loading is unavailable.
+- x402-style HTTP 402 adapter for merchant APIs: paid routes return machine-readable payment requirements and unlock only after a settled payment.
+- Agent-readable capability registry, HTTP 402 conformance endpoint, billing summary, receipt list, and webhook outbox for commercial merchant integrations.
+- Hosted multi-tenant gateway MVP, marketplace capability index, buyer budget policy engine, signed webhook events, billing statements, payout reports, and a coding-agent vertical demo.
 - One-command installers for Codex-style hosts, generic MCP hosts, Claude-style configs, CUA, OpenClaw, Hermes, and skill-only usage.
 - Admin protection for seller ops/config routes, buyer onboarding origin hardening, and release safety tooling that blocks local secrets/state from artifacts.
 
-Latest local validation in this workspace on 2026-04-27:
+Release validation commands:
 
 ```text
-npm test                                        -> 13 passing
-PYTHONPATH=python python -m pytest python/tests -> 162 passed
-python -m ops_tools.ai_host_smoke --json        -> ok: true
-npm run validate:nile                           -> nile validation: ok
+npm test
+PYTHONPATH=python python -m pytest python/tests
+cd python && PYTHONPATH=. python -m ops_tools.ai_host_smoke --json
+npm run validate:nile
 ```
 
 `npm run preflight:security` is a production readiness check. It is expected to fail on placeholder/local config until real chain IDs, contract/token addresses, admin token, storage, audit log, and secret management are configured.
@@ -97,7 +114,106 @@ Reference docs:
 
 - [AI Host Playbook](spec/AI_HOST_PLAYBOOK.md)
 - [MCP Integration Guide](spec/MCP_INTEGRATION_GUIDE.md)
+- [Merchant Quickstart](spec/MERCHANT_QUICKSTART.md)
+- [Hosted Gateway Deployment](spec/HOSTED_GATEWAY_DEPLOYMENT.md)
+- [HTTP 402 Adapter](spec/HTTP402_ADAPTER.md)
+- [Facilitator And Mandates](spec/FACILITATOR_AND_MANDATES.md)
+- [Commercialization MVP](spec/COMMERCIALIZATION_MVP.md)
 - [Capability Manifest](agent-dist/aimipay.capabilities.json)
+
+## Merchant SDK Surface
+
+Merchant APIs can expose paid resources with an x402-style 402 handshake:
+
+```python
+from fastapi import FastAPI
+from seller import install_sellable_capability
+
+app = FastAPI()
+merchant = install_sellable_capability(
+    app,
+    service_name="Research Copilot",
+    service_description="Pay-per-use research and market data",
+    seller_address="0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    contract_address="0x1000000000000000000000000000000000000001",
+    token_address="0x2000000000000000000000000000000000000002",
+)
+
+
+@merchant.paid_api(
+    path="/tools/research",
+    price_atomic=250_000,
+    capability_type="web_search",
+    capability_id="research-web-search",
+)
+def research_tool(body: dict) -> dict:
+    return {"result": run_research(body["query"])}
+```
+
+Without payment the route returns `402 Payment Required` with `schema_version = aimipay.http402.v1`, `accepts`, and `next_actions`. After payment settlement, the host retries with `X-PAYMENT` or `X-AIMIPAY-PAYMENT-ID` and receives the protected resource plus `X-PAYMENT-RESPONSE`.
+
+Buyer clients can run the full 402 flow automatically:
+
+```python
+result = client.request_paid_resource(
+    "/tools/research",
+    json_body={"query": "agent payments"},
+    budget_limit_atomic=300_000,
+)
+
+resource_payload = result["response"].json()
+receipt = result["payment_response"]
+```
+
+The seller adapter binds the payment to the route and amount before releasing the resource. A payment for another path or a lower-priced route returns another 402 instead of unlocking the API.
+
+Commercial merchant integrations can also read:
+
+- `GET /_aimipay/registry/capabilities`: enabled auto-purchasable capabilities, pricing, and risk hints.
+- `GET /_aimipay/protocol/http402-conformance`: implemented HTTP 402 profile and compatibility boundaries.
+- `GET /_aimipay/ops/billing/summary`: protected billing totals by status and route.
+- `GET /_aimipay/ops/billing/statement`: protected statement with deterministic hash.
+- `GET /_aimipay/ops/payouts/report`: protected payout report with net payout amount.
+- `GET /_aimipay/ops/receipts`: protected payment-level receipts for reconciliation.
+- `GET /_aimipay/ops/webhooks/outbox`: protected lifecycle event outbox for merchant backend sync.
+
+Hosted gateway MVP:
+
+- `seller.install_hosted_gateway(...)` mounts isolated merchants under `/merchants/{merchant_id}`.
+- `GET /_aimipay/hosted/merchants` lists hosted merchants.
+- `GET /_aimipay/marketplace/capabilities` aggregates all hosted merchant capabilities.
+- `GET /_aimipay/hosted/merchants/{merchant_id}/admin-summary` returns a protected merchant summary.
+
+Buyer-side budget policies:
+
+```python
+from buyer import BuyerBudgetPolicy, BuyerClient
+
+client = BuyerClient(
+    merchant_base_url="https://merchant.example",
+    full_host="https://tron.example",
+    wallet=wallet,
+    provisioner=provisioner,
+    budget_policy=BuyerBudgetPolicy(
+        per_purchase_limit_atomic=500_000,
+        daily_limit_atomic=2_000_000,
+        require_approval_for_untrusted=True,
+    ),
+)
+```
+
+Developer CLI:
+
+```bash
+PYTHONPATH=python python -m ops_tools.aimipay_cli merchant init --service-name "Research Copilot"
+PYTHONPATH=python python -m ops_tools.aimipay_cli merchant verify --config aimipay.merchant.json
+PYTHONPATH=python python -m ops_tools.aimipay_cli merchant dev
+PYTHONPATH=python python -m ops_tools.aimipay_cli demo --json
+```
+
+Product headline for external positioning:
+
+> Turn any API into an agent-paid API. AimiPay lets AI hosts discover paid capabilities, enforce buyer budgets, complete HTTP 402 payments, and return signed receipts that merchants can reconcile.
 
 ## External AI Host Install
 
@@ -307,13 +423,14 @@ Before production mainnet use:
 - [Agent Distribution Guide](agent-dist/README.md)
 - [Host Install Checklist](agent-dist/HOST_INSTALL_CHECKLIST.md)
 - [Protocol Reference](spec/PROTOCOL_REFERENCE.md)
+- [Merchant Quickstart](spec/MERCHANT_QUICKSTART.md)
+- [Hosted Gateway Deployment](spec/HOSTED_GATEWAY_DEPLOYMENT.md)
+- [Facilitator And Mandates](spec/FACILITATOR_AND_MANDATES.md)
+- [HTTP 402 Adapter](spec/HTTP402_ADAPTER.md)
+- [Commercialization MVP](spec/COMMERCIALIZATION_MVP.md)
 - [Agent Integration Guide](spec/AGENT_INTEGRATION_GUIDE.md)
 - [Buyer Implementer Guide](spec/BUYER_IMPLEMENTER_GUIDE.md)
 - [Host Implementer Guide](spec/HOST_IMPLEMENTER_GUIDE.md)
 - [Third-Party Implementer Guide](spec/THIRD_PARTY_IMPLEMENTER_GUIDE.md)
 - [Release Publishing Guide](spec/RELEASE_PUBLISHING_GUIDE.md)
 - [Tron-First Development Guide](spec/TRON_FIRST_DEVELOPMENT_GUIDE.md)
-
-## GitHub Sync Note
-
-This downloaded workspace is not currently a git working tree, so local `git status`, commits, and pushes cannot work from this folder. To publish changes, apply these files in a real clone of `kanzakMu/Torn-AgentPay`, then commit and push there, or reconnect this directory to its `.git` metadata first.
